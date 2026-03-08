@@ -1,0 +1,6 @@
+/* Reset standard create-react-app / vite layout restrictions that cause mobile issues */
+#root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
