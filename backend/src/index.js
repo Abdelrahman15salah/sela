@@ -38,7 +38,21 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        const allowed = [
+            process.env.FRONTEND_URL,
+            'http://localhost:5173',
+        ].filter(Boolean);
+
+        // Allow any Vercel preview/production URL for this project
+        const isVercel = origin && /https:\/\/sela[^.]*\.vercel\.app$/.test(origin);
+
+        if (!origin || allowed.includes(origin) || isVercel) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
 }));
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
