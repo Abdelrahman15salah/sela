@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+    darkMode: 'class',
     content: [
         "./index.html",
         "./src/**/*.{js,ts,jsx,tsx}",
@@ -20,9 +21,12 @@ export default {
                     900: '#312e81',
                 },
                 dark: {
-                    900: '#09090b', // Zinc 950
-                    800: '#18181b', // Zinc 900
-                    700: '#27272a'  // Zinc 800
+                    950: '#09090b',
+                    900: '#18181b',
+                    800: '#27272a',
+                    700: '#3f3f46',
+                    600: '#52525b',
+                    500: '#71717a'
                 }
             },
             fontFamily: {

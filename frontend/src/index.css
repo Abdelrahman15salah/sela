@@ -22,11 +22,32 @@ body {
   @apply bg-slate-50 text-slate-900 antialiased selection:bg-brand-500 selection:text-white transition-colors duration-300;
 }
 
+/* Dark mode base styles - using more refined Zinc palette for premium feel */
+.dark body {
+  background-color: #09090b; /* Zinc 950 */
+  color: #f4f4f5; /* Zinc 100 */
+}
+
+.dark .glass {
+  background-color: rgba(24, 24, 27, 0.85); /* Zinc 900 @ 85% */
+  backdrop-filter: blur(12px);
+  border-color: rgba(63, 63, 70, 0.4); /* Zinc 700 @ 40% */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
 a:focus-visible,
 button:focus-visible {
   @apply outline-2 outline-offset-2 outline-brand-500 rounded;
 }
 
 input, textarea, select {
-  @apply text-slate-900;
+  @apply text-slate-900 bg-white border-slate-200;
 }
+
+.dark input, .dark textarea, .dark select {
+  color: #f4f4f5;
+  background-color: #18181b; /* Zinc 900 */
+  border-color: #3f3f46; /* Zinc 700 */
+}
+
+

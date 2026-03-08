@@ -34,12 +34,12 @@ const ProductCard = ({ product }) => {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="group relative bg-white rounded-3xl overflow-hidden transition-all duration-500 flex flex-col h-full border border-slate-100 hover:border-transparent cursor-pointer shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.1)] hover:-translate-y-2"
+            className="group relative bg-white dark:bg-dark-900 rounded-3xl overflow-hidden transition-all duration-500 flex flex-col h-full border border-slate-100 dark:border-dark-800 hover:border-transparent cursor-pointer shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.2)] hover:-translate-y-2"
         >
             <Link to={productUrl} className="absolute inset-0 z-0" aria-hidden="true" />
 
             {/* Top Image Area */}
-            <div className="relative z-10 aspect-[4/5] overflow-hidden bg-slate-50/50 flex items-center justify-center p-8 pointer-events-none">
+            <div className="relative z-10 aspect-[4/5] overflow-hidden bg-slate-50/50 dark:bg-dark-800/50 flex items-center justify-center p-8 pointer-events-none">
 
                 {/* Badges */}
                 <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
@@ -62,7 +62,7 @@ const ProductCard = ({ product }) => {
                     src={mainImage}
                     alt={title}
                     onError={handleImageError}
-                    className="object-contain w-full h-full mix-blend-multiply transition-all duration-700 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-110"
+                    className="object-contain w-full h-full mix-blend-multiply dark:mix-blend-normal brightness-100 dark:brightness-110 contrast-100 dark:contrast-110 transition-all duration-700 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-110"
                     loading="lazy"
                 />
 
@@ -93,7 +93,7 @@ const ProductCard = ({ product }) => {
             </div>
 
             {/* Bottom Content Area */}
-            <div className="p-6 flex flex-col flex-grow z-10 pointer-events-none bg-white">
+            <div className="p-6 flex flex-col flex-grow z-10 pointer-events-none bg-white dark:bg-dark-900">
 
                 {/* Rating (Compact) */}
                 {rating > 0 && (
@@ -101,7 +101,7 @@ const ProductCard = ({ product }) => {
                         {[...Array(5)].map((_, i) => (
                             <svg
                                 key={i}
-                                className={`w-3.5 h-3.5 ${i < Math.floor(rating) ? 'text-brand-500' : 'text-slate-200'}`}
+                                className={`w-3.5 h-3.5 ${i < Math.floor(rating) ? 'text-brand-500' : 'text-slate-200 dark:text-dark-600'}`}
                                 fill="currentColor"
                                 viewBox="0 0 20 20"
                                 aria-hidden="true"
@@ -113,13 +113,13 @@ const ProductCard = ({ product }) => {
                 )}
 
                 <Link to={productUrl} className="pointer-events-auto hover:text-brand-600 transition-colors">
-                    <h3 className="font-serif text-xl font-medium text-dark-800 leading-snug line-clamp-3 mb-4 group-hover:text-brand-600 transition-colors title-text">
+                    <h3 className="font-serif text-xl font-medium text-dark-800 dark:text-slate-100 leading-snug line-clamp-3 mb-4 group-hover:text-brand-600 transition-colors title-text">
                         {title}
                     </h3>
                 </Link>
 
                 {/* Price and Minimal Action */}
-                <div className="mt-auto pt-4 flex items-end justify-between border-t border-slate-50 pointer-events-auto">
+                <div className="mt-auto pt-4 flex items-end justify-between border-t border-slate-50 dark:border-dark-700 pointer-events-auto">
                     <div className="flex flex-col pointer-events-none">
                         {onSale && saleDisplay ? (
                             <>
@@ -131,7 +131,7 @@ const ProductCard = ({ product }) => {
                                 </span>
                             </>
                         ) : (
-                            <span className="text-xl font-medium tracking-tight text-dark-900">
+                            <span className="text-xl font-medium tracking-tight text-dark-900 dark:text-slate-100">
                                 {priceDisplay}
                             </span>
                         )}
@@ -141,7 +141,7 @@ const ProductCard = ({ product }) => {
                         href={affiliateLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-slate-100 text-slate-700 hover:bg-brand-600 hover:text-white px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-colors"
+                        className="bg-slate-100 dark:bg-dark-800 text-slate-700 dark:text-slate-400 hover:bg-brand-600 hover:text-white px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-colors"
                         onClick={(e) => e.stopPropagation()}
                     >
                         View Offer
