@@ -15,7 +15,7 @@ const parseAsinFromUrl = (url) => {
             /[?&]asin=([A-Z0-9]{10})/i,
             /\/ASIN\/([A-Z0-9]{10})/i
         ];
-        
+
         for (const pattern of patterns) {
             const match = url.match(pattern);
             if (match && match[1]) return match[1];
@@ -104,7 +104,7 @@ const AdminPage = () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['categories'] });
             setQuickAddInput('');
-            
+
             if (res.data.needsReview) {
                 setError('We added the product, but Amazon blocked us from grabbing the details. Please fill them in below!');
                 handleEditClick(res.data.product);
@@ -579,7 +579,7 @@ const AdminPage = () => {
                             <div className="grid gap-6 sm:grid-cols-2">
                                 <div>
                                     <label htmlFor="price" className="block text-sm font-medium text-slate-700 mb-1">Retail Price</label>
-                                    <div className="relative">
+                                    <div className="relative group">
                                         <input
                                             id="price"
                                             name="price"
@@ -591,8 +591,20 @@ const AdminPage = () => {
                                             onChange={handleChange}
                                             className="w-full pl-4 pr-16 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
                                         />
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">
-                                            {form.currency}
+                                        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                            <select
+                                                name="currency"
+                                                value={form.currency}
+                                                onChange={handleChange}
+                                                className="bg-transparent border-none text-slate-500 font-bold text-sm focus:ring-0 cursor-pointer pr-6"
+                                            >
+                                                <option value="EGP">EGP</option>
+                                                <option value="USD">USD</option>
+                                                <option value="GBP">GBP</option>
+                                                <option value="EUR">EUR</option>
+                                                <option value="SAR">SAR</option>
+                                                <option value="AED">AED</option>
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -690,7 +702,7 @@ const AdminPage = () => {
                                     </div>
                                 ) : (
                                     <>
-                                        {editingId ? <FiCheck size={20} /> : <FiPlus size={20} />} 
+                                        {editingId ? <FiCheck size={20} /> : <FiPlus size={20} />}
                                         {editingId ? 'Update Product Details' : 'Save & Publish Product'}
                                     </>
                                 )}

@@ -41,28 +41,89 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
         const $ = cheerio.load(html);
 
         const features = [];
-        // Extract Title
+
+        // --- IMAGE EXTRACTION (Prioritize meta tags as they are rarely blocked) ---
+        let imageUrl = $('meta[property="og:image"]').attr('content') ||
+            $('meta[name="twitter:image"]').attr('content');
+
+        // Fallback image extraction from landing page selectors
+        if (!imageUrl) {
+            const imgTag = $('#landingImage, #imgBlkFront, #main-image').first();
+            if (imgTag.length > 0) {
+                imageUrl = imgTag.attr('src');
+                const dataDynamic = imgTag.attr('data-a-dynamic-image');
+                if (dataDynamic) {
+                    try {
+                        const parsed = JSON.parse(dataDynamic);
+                        imageUrl = Object.keys(parsed).sort((a, b) => parsed[b][0] - parsed[a][0])[0];
+                    } catch (e) { }
+                }
+            }
+        }
+
+        // --- PRICE EXTRACTION ---
+        let priceAmount = 0;
+        let priceCurrency = 'USD';
+        let displayPrice = '';
+
+        // 1. Try JSON-LD (Schema.org) - Very reliable and rarely blocked
+        const jsonLd = $('script[type="application/ld+json"]');
+        if (jsonLd.length > 0) {
+            jsonLd.each((i, el) => {
+                try {
+                    const data = JSON.parse($(el).html());
+                    const offer = data?.offers?.[0] || data?.offers;
+                    if (offer && offer.price) {
+                        priceAmount = parseFloat(offer.price);
+                        priceCurrency = offer.priceCurrency || 'USD';
+                        displayPrice = `$${priceAmount.toFixed(2)}`;
+                    }
+                } catch (e) { }
+            });
+        }
+
+        // 2. Try Social Meta Tags (Twitter often has price in data1)
+        if (!priceAmount) {
+            const metaPrice = $('meta[name="twitter:data1"]').attr('content'); // Often "Price: $99.99"
+            if (metaPrice) {
+                const match = metaPrice.match(/[\d,]+\.?\d*/);
+                if (match) {
+                    priceAmount = parseFloat(match[0].replace(/,/g, ''));
+                    displayPrice = metaPrice.includes('$') ? `$${priceAmount.toFixed(2)}` : `${priceAmount.toFixed(2)}`;
+                }
+            }
+        }
+
+        // 3. Last resort: Standard Price selectors (Often blocked)
+        if (!priceAmount) {
+            const priceWhole = $('.a-price-whole').first().text().replace(/[^0-9.]/g, '');
+            const priceFraction = $('.a-price-fraction').first().text() || '00';
+            if (priceWhole) {
+                priceAmount = parseFloat(`${priceWhole}${priceFraction}`);
+                displayPrice = `$${priceAmount.toFixed(2)}`;
+            }
+        }
+
+        // --- TITLE EXTRACTION ---
         let title = $('#productTitle').text().trim();
         if (!title) {
-            title = $('title').text().replace('Amazon.com:', '').trim();
+            title = $('meta[property="og:title"]').attr('content')?.replace('Amazon.com:', '')?.trim() ||
+                $('title').text().replace('Amazon.com:', '').trim();
         }
 
         // Detect bot protection
         let needsReview = false;
-        const isRobotCheck = !title ||
-            title.toLowerCase().includes('robot check') ||
-            title.toLowerCase().includes('bot test') ||
-            html.includes('api-services-support@amazon.com');
+        const isRobotCheck = (!title || title.toLowerCase().includes('robot check')) && !imageUrl && !priceAmount;
 
         if (isRobotCheck) {
             console.log(`Amazon blocked the scrape for ${asin}. Using fallback logic.`);
             title = fallbackTitle || `Amazon Product (${asin})`;
             needsReview = true;
             features.push('Details could not be automatically synced due to temporary Amazon bot protection.');
-            features.push('The link is saved and you can manually update the description and price in the edit form.');
+            features.push('The link is saved and you can manually update the missing details in the edit form.');
         }
 
-        // If we have a title but no features, use a generic description
+        // If we have data but no features, use a generic description
         if (title && features.length === 0) {
             const featureText = $('#feature-bullets li span').map((i, el) => $(el).text().trim()).get();
             if (featureText.length > 0) {
@@ -83,15 +144,15 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
             Offers: {
                 Listings: [{
                     Price: {
-                        Amount: 0,
-                        Currency: 'USD',
-                        DisplayAmount: 'Check Amazon'
+                        Amount: priceAmount,
+                        Currency: priceCurrency,
+                        DisplayAmount: displayPrice || (priceAmount ? `$${priceAmount.toFixed(2)}` : 'Check Amazon')
                     }
                 }]
             },
             Images: {
                 Primary: {
-                    Large: { URL: `https://placehold.co/800x800/131921/FFFFFF?text=${encodeURIComponent(title)}\n(Sync Pending)&font=playfair-display` }
+                    Large: { URL: imageUrl || `https://placehold.co/800x800/131921/FFFFFF?text=${encodeURIComponent(title)}\n(Image Unavailable)&font=playfair-display` }
                 },
                 Variants: []
             }
