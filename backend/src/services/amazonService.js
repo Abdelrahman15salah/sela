@@ -31,11 +31,12 @@ const getScrapeHeaders = () => ({
  * Scrapes a single Amazon product page by ASIN.
  * @param {String} asin - The 10-character Amazon ASIN
  * @param {String} fallbackTitle - Optional title to use if scraping fails
+ * @param {String} domain - Amazon domain (e.g., www.amazon.com, www.amazon.eg)
  * @returns {Promise<Object|null>} An object resembling the PA-API response format
  */
-const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
+const scrapeAmazonProduct = async (asin, fallbackTitle = null, domain = 'www.amazon.com') => {
     try {
-        const url = `https://www.amazon.com/dp/${asin}`;
+        const url = `https://${domain}/dp/${asin}`;
         const response = await axios.get(url, { headers: getScrapeHeaders(), timeout: 15000 });
         const html = response.data;
         const $ = cheerio.load(html);
@@ -63,7 +64,7 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
 
         // --- PRICE EXTRACTION ---
         let priceAmount = 0;
-        let priceCurrency = 'USD';
+        let priceCurrency = domain.endsWith('.eg') ? 'EGP' : 'USD';
         let displayPrice = '';
 
         // 1. Try JSON-LD (Schema.org) - Very reliable and rarely blocked
@@ -75,8 +76,8 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
                     const offer = data?.offers?.[0] || data?.offers;
                     if (offer && offer.price) {
                         priceAmount = parseFloat(offer.price);
-                        priceCurrency = offer.priceCurrency || 'USD';
-                        displayPrice = `$${priceAmount.toFixed(2)}`;
+                        if (offer.priceCurrency) priceCurrency = offer.priceCurrency;
+                        displayPrice = `${priceCurrency === 'EGP' ? 'EGP' : '$'} ${priceAmount.toLocaleString()}`;
                     }
                 } catch (e) { }
             });
@@ -84,23 +85,40 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
 
         // 2. Try Social Meta Tags (Twitter often has price in data1)
         if (!priceAmount) {
-            const metaPrice = $('meta[name="twitter:data1"]').attr('content'); // Often "Price: $99.99"
+            const metaPrice = $('meta[name="twitter:data1"]').attr('content');
             if (metaPrice) {
                 const match = metaPrice.match(/[\d,]+\.?\d*/);
                 if (match) {
                     priceAmount = parseFloat(match[0].replace(/,/g, ''));
-                    displayPrice = metaPrice.includes('$') ? `$${priceAmount.toFixed(2)}` : `${priceAmount.toFixed(2)}`;
+                    const hasCurrencySymbol = metaPrice.includes('$') || metaPrice.toLowerCase().includes('egp');
+                    displayPrice = hasCurrencySymbol ? metaPrice : `${priceCurrency} ${priceAmount}`;
                 }
             }
         }
 
-        // 3. Last resort: Standard Price selectors (Often blocked)
+        // 3. Last resort: Standard Price selectors
         if (!priceAmount) {
-            const priceWhole = $('.a-price-whole').first().text().replace(/[^0-9.]/g, '');
-            const priceFraction = $('.a-price-fraction').first().text() || '00';
-            if (priceWhole) {
-                priceAmount = parseFloat(`${priceWhole}${priceFraction}`);
-                displayPrice = `$${priceAmount.toFixed(2)}`;
+            const priceSelectors = [
+                'span.a-price span.a-offscreen',
+                '#priceblock_ourprice',
+                '#priceblock_dealprice',
+                '.a-price.priceToPay span.a-offscreen',
+                '.a-price.apexPriceToPay span.a-offscreen'
+            ];
+
+            for (const selector of priceSelectors) {
+                const text = $(selector).first().text().trim();
+                if (text) {
+                    const numericMatch = text.match(/[\d,]+\.?\d*/);
+                    if (numericMatch) {
+                        priceAmount = parseFloat(numericMatch[0].replace(/,/g, ''));
+                        displayPrice = text;
+                        // Try to detect currency from symbol
+                        if (text.includes('EGP') || text.includes('ج.م')) priceCurrency = 'EGP';
+                        else if (text.includes('$')) priceCurrency = 'USD';
+                        break;
+                    }
+                }
             }
         }
 
@@ -121,6 +139,10 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
             needsReview = true;
             features.push('Details could not be automatically synced due to temporary Amazon bot protection.');
             features.push('The link is saved and you can manually update the missing details in the edit form.');
+
+            // Set regional-aware prices for robot check return
+            priceCurrency = domain.endsWith('.eg') ? 'EGP' : 'USD';
+            displayPrice = 'Check Amazon';
         }
 
         // If we have data but no features, use a generic description
@@ -129,7 +151,7 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
             if (featureText.length > 0) {
                 features.push(...featureText);
             } else {
-                features.push(`View full details and availability for the ${title} directly on Amazon.`);
+                features.push(`View full details for ${title} on Amazon.`);
             }
         }
 
@@ -168,7 +190,7 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
                 Features: { DisplayValues: ['Automatic sync is currently unavailable due to Amazon bot protection. Please click "Edit" below to finalize details manually.'] }
             },
             Offers: {
-                Listings: [{ Price: { Amount: 0, Currency: 'USD', DisplayAmount: 'Check Amazon' } }]
+                Listings: [{ Price: { Amount: 0, Currency: domain.endsWith('.eg') ? 'EGP' : 'USD', DisplayAmount: 'Check Amazon' } }]
             },
             Images: {
                 Primary: { Large: { URL: `https://placehold.co/800x800/131921/FFFFFF?text=${encodeURIComponent(fallbackTitle || 'Product')}\n(Connection Error)&font=playfair-display` } },
@@ -188,7 +210,8 @@ const getItems = async (items) => {
     const promises = items.map(item => {
         const asin = typeof item === 'string' ? item : item.asin;
         const fallbackTitle = typeof item === 'object' ? item.fallbackTitle : null;
-        return scrapeAmazonProduct(asin, fallbackTitle);
+        const domain = typeof item === 'object' ? (item.domain || 'www.amazon.com') : 'www.amazon.com';
+        return scrapeAmazonProduct(asin, fallbackTitle, domain);
     });
 
     const results = await Promise.all(promises);

@@ -1,6 +1,6 @@
 const Product = require('../models/Product');
 const { getItems, searchItems } = require('../services/amazonService');
-const { getAsinFromInput, extractTitleFromUrl } = require('../utils/urlResolver');
+const { getAsinFromInput, extractTitleFromUrl, extractDomain } = require('../utils/urlResolver');
 
 const CACHE_EXPIRATION_HOURS = 24;
 
@@ -50,8 +50,10 @@ const syncProduct = async (req, res) => {
 
     // Use input if asin is not provided (for Quick Add)
     let fallbackTitle = null;
+    let domain = 'www.amazon.com';
     if (input) {
         fallbackTitle = extractTitleFromUrl(input);
+        domain = extractDomain(input);
     }
 
     if (!asin && input) {
@@ -64,7 +66,7 @@ const syncProduct = async (req, res) => {
 
     try {
         // 1. Fetch from Amazon API (can pass objects now)
-        const paapiData = await getItems([{ asin, fallbackTitle }]);
+        const paapiData = await getItems([{ asin, fallbackTitle, domain }]);
 
         const items = paapiData?.ItemsResult?.Items;
         if (!items || items.length === 0) {
@@ -122,6 +124,7 @@ const syncProduct = async (req, res) => {
             title,
             description,
             price: { amount, currency, displayPrice },
+            currency, // Explicitly save to top-level for frontend use
             images,
             category: category || 'General',
             lastUpdated: new Date()
@@ -152,11 +155,12 @@ const bulkSyncProducts = async (req, res) => {
     }
 
     try {
-        // 1. Resolve all inputs and extract fallback titles
+        // 1. Resolve all inputs and extract fallback titles and domains
         const resolvedItems = await Promise.all(inputs.map(async (input) => {
             const asin = await getAsinFromInput(input);
             const fallbackTitle = extractTitleFromUrl(input);
-            return { asin, fallbackTitle };
+            const domain = extractDomain(input);
+            return { asin, fallbackTitle, domain };
         }));
 
         // Filter out items where ASIN couldn't be resolved
@@ -220,6 +224,7 @@ const bulkSyncProducts = async (req, res) => {
                             title,
                             description: description || `Discover the best deals on ${title} at Sela Store. Premium products curated for your lifestyle.`,
                             price: { amount, currency, displayPrice },
+                            currency, // Explicitly save to top-level for frontend use
                             images,
                             category,
                             lastUpdated: new Date()

@@ -30,7 +30,7 @@ const Header = () => {
                 <div className="flex justify-between items-center h-20">
                     <Link to="/" className="flex-shrink-0 flex items-center gap-2">
                         <span className="font-serif text-3xl font-bold tracking-tight text-gradient">Sela</span>
-                        <span className="hidden sm:block text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400 font-medium mt-2">Store</span>
+                        <span className=" sm:block text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400 font-medium mt-2">Store</span>
                     </Link>
 
                     <nav className="hidden md:flex gap-8" aria-label="Main navigation">
@@ -107,7 +107,7 @@ const Header = () => {
 
             {/* Mobile menu */}
             {isMobileOpen && (
-                <div id="mobile-menu" className="md:hidden border-t border-slate-200 dark:border-dark-800 bg-white/95 dark:bg-dark-950/95 backdrop-blur-lg">
+                <div id="mobile-menu" className=" border-t border-slate-200 dark:border-dark-800 bg-white/95 dark:bg-dark-950/95 backdrop-blur-lg">
                     <nav className="max-w-7xl mx-auto px-4 py-4 space-y-2" aria-label="Mobile navigation">
                         <Link to="/" className="block py-2 text-slate-600 dark:text-slate-300 hover:text-brand-600 font-medium" onClick={() => setIsMobileOpen(false)}>Home</Link>
                         {categories.map((name) => (

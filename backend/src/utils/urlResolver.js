@@ -84,8 +84,6 @@ const extractTitleFromUrl = (url) => {
         const match = url.match(/amazon\.[a-z\.]+\/([^/]+)\/(?:dp|gp\/product)\//i);
         if (!match || !match[1]) return null;
 
-        const slug = match[1];
-        // Clean up: replace hyphens/underscores with spaces and capitalize
         return slug
             .split(/[-_]/)
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -96,9 +94,27 @@ const extractTitleFromUrl = (url) => {
     }
 };
 
+/**
+ * Extracts the Amazon domain from a URL (e.g., amazon.com, amazon.eg)
+ * @param {string} url 
+ * @returns {string} The domain, defaults to 'www.amazon.com'
+ */
+const extractDomain = (url) => {
+    try {
+        const match = url.match(/https?:\/\/([^/]+)/i);
+        if (match && match[1] && match[1].includes('amazon.')) {
+            return match[1];
+        }
+        return 'www.amazon.com';
+    } catch (e) {
+        return 'www.amazon.com';
+    }
+};
+
 module.exports = {
     extractAsin,
     extractTitleFromUrl,
+    extractDomain,
     resolveShortlink,
     getAsinFromInput
 };
