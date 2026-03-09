@@ -27,7 +27,7 @@ const Home = () => {
                         transition={{ delay: 0.2, duration: 1 }}
                         className="text-brand-600 font-semibold tracking-widest uppercase text-sm mb-4 block"
                     >
-                        Welcome to Sela
+                        Welcome to Sela Store
                     </motion.span>
                     <motion.h1
                         initial={{ opacity: 0, y: 20 }}

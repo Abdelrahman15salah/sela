@@ -12,7 +12,7 @@ const Footer = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
 
                     <div>
-                        <h2 className="text-3xl font-serif text-white mb-6">Sela</h2>
+                        <h2 className="text-3xl font-serif text-white mb-6">Sela Store</h2>
                         <p className="text-slate-400 text-sm leading-relaxed mb-6">
                             Curated elegance for your everyday life. Discover premium products carefully selected for quality, design, and sophisticated living.
                         </p>
@@ -38,9 +38,9 @@ const Footer = () => {
                     <div>
                         <h3 className="text-white font-medium uppercase tracking-wider text-sm mb-6">Connect</h3>
                         <ul className="space-y-4">
-                            <li><a href="#" className="text-slate-400 hover:text-white transition-colors text-sm">Instagram</a></li>
-                            <li><a href="#" className="text-slate-400 hover:text-white transition-colors text-sm">Pinterest</a></li>
-                            <li><a href="#" className="text-slate-400 hover:text-white transition-colors text-sm">Twitter</a></li>
+                            <li><a href="#" disabled className="text-slate-400 hover:text-white transition-colors text-sm">Instagram</a></li>
+                            <li><a href="#" disabled className="text-slate-400 hover:text-white transition-colors text-sm">Pinterest</a></li>
+                            <li><a href="#" disabled className="text-slate-400 hover:text-white transition-colors text-sm">Twitter</a></li>
                         </ul>
                     </div>
                 </div>
