@@ -16,7 +16,7 @@ const getPriceDisplay = (price, currency) => {
 
 const ProductCard = ({ product }) => {
     const {
-        _id, asin, title, price, currency, images, imageURL,
+        _id, asin, title, price, currency, domain, images, imageURL,
         amazonLink, rating, isFeatured, salePrice, salePercentage, isOnSale,
     } = product;
 
@@ -24,7 +24,7 @@ const ProductCard = ({ product }) => {
     const priceDisplay = getPriceDisplay(price, currency);
     const onSale = isOnSale && typeof salePrice === 'number';
     const saleDisplay = onSale ? getPriceDisplay(salePrice, currency) : null;
-    const affiliateLink = amazonLink ? appendTagToUrl(amazonLink) : generateAffiliateLink(asin);
+    const affiliateLink = amazonLink ? appendTagToUrl(amazonLink) : generateAffiliateLink(asin, domain);
     const productUrl = `/product/${_id || asin}`;
 
     const handleImageError = (e) => {

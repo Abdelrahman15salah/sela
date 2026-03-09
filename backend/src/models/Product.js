@@ -18,6 +18,7 @@ const productSchema = new mongoose.Schema({
     // or a PA-API price object for synced products)
     price: { type: mongoose.Schema.Types.Mixed },
     currency: { type: String },
+    domain: { type: String, default: 'www.amazon.com' },
     // Optional sale information for manual products
     salePrice: { type: Number },
     salePercentage: { type: Number },

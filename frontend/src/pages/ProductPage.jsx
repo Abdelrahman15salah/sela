@@ -53,7 +53,7 @@ const ProductPage = () => {
     const mainImage = product.images?.[0] || product.imageURL || fallbackImage;
     const affiliateLink = product.amazonLink
         ? appendTagToUrl(product.amazonLink)
-        : generateAffiliateLink(product.asin);
+        : generateAffiliateLink(product.asin, product.domain);
     const priceDisplay = getPriceDisplay(product.price, product.currency);
     const onSale = product.isOnSale && typeof product.salePrice === 'number';
     const saleDisplay = onSale ? getPriceDisplay(product.salePrice, product.currency) : null;

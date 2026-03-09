@@ -28,21 +28,22 @@ const extractAsin = (url) => {
 };
 
 /**
- * Resolves an amzn.to shortlink to its full URL and extracts the ASIN
+ * Resolves an amzn.to shortlink to its full URL
  * @param {string} shortUrl - e.g., https://amzn.to/3xyz
- * @returns {Promise<string|null>} Resolves to the ASIN if found
+ * @returns {Promise<string|null>} Resolves to the full destination URL
  */
 const resolveShortlink = async (shortUrl) => {
     try {
-        // We only need the headers to get the redirect location,
-        // but axios follows redirects by default. We want to catch the final URL.
         const response = await axios.get(shortUrl, {
             maxRedirects: 5,
-            timeout: 5000,
+            timeout: 8000,
+            headers: {
+                // Some regions block axios default UA
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
         });
 
-        const finalUrl = response.request.res.responseUrl || response.config.url;
-        return extractAsin(finalUrl);
+        return response.request.res.responseUrl || response.config.url;
     } catch (error) {
         console.error(`Error resolving shortlink ${shortUrl}:`, error.message);
         return null;
@@ -50,43 +51,60 @@ const resolveShortlink = async (shortUrl) => {
 };
 
 /**
+ * Normalizes input string into its components
+ * @param {string} input - URL or ASIN
+ * @returns {Promise<Object>} { asin, domain, fallbackTitle }
+ */
+const resolveProductInput = async (input) => {
+    const trimmed = input.trim();
+    let asin = null;
+    let finalUrl = trimmed;
+    let domain = 'www.amazon.com';
+
+    // 1. If it's a raw ASIN
+    if (/^[A-Z0-9]{10}$/i.test(trimmed)) {
+        return { asin: trimmed.toUpperCase(), domain: 'www.amazon.com', fallbackTitle: null };
+    }
+
+    // 2. If it's a shortlink, resolve it first
+    if (trimmed.includes('amzn.to/') || trimmed.includes('a.co/')) {
+        const resolved = await resolveShortlink(trimmed);
+        if (resolved) finalUrl = resolved;
+    }
+
+    // 3. Extract details from the (potentially resolved) URL
+    asin = extractAsin(finalUrl);
+    domain = extractDomain(finalUrl);
+    const fallbackTitle = extractTitleFromUrl(finalUrl);
+
+    return { asin, domain, fallbackTitle };
+};
+
+/**
  * Normalizes input string into an ASIN
- * Input can be a raw ASIN, a standard Amazon link, or a SiteStripe shortlink
- * @param {string} input
- * @returns {Promise<string|null>} The ASIN, or null if invalid
  */
 const getAsinFromInput = async (input) => {
-    const trimmed = input.trim();
-    if (!trimmed) return null;
-
-    // Check if it's already a raw 10-char ASIN
-    if (/^[A-Z0-9]{10}$/i.test(trimmed)) {
-        return trimmed.toUpperCase();
-    }
-
-    // Check if it's a shortlink
-    if (trimmed.includes('amzn.to/')) {
-        return await resolveShortlink(trimmed);
-    }
-
-    // Otherwise, assume it's a regular URL and try to extract ASIN
-    return extractAsin(trimmed);
+    const result = await resolveProductInput(input);
+    return result.asin;
 };
 
 /**
  * Extracts a human-readable title from the Amazon URL slug
- * @param {string} url 
- * @returns {string|null}
  */
 const extractTitleFromUrl = (url) => {
     try {
-        // Matches the part before /dp/ or /gp/product/
         const match = url.match(/amazon\.[a-z\.]+\/([^/]+)\/(?:dp|gp\/product)\//i);
         if (!match || !match[1]) return null;
 
+        const slug = match[1];
         return slug
             .split(/[-_]/)
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .map(word => {
+                // Filter out non-alphabetic chars for title
+                const clean = word.replace(/[^a-zA-Z]/g, '');
+                return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+            })
+            .filter(word => word.length > 1)
             .join(' ')
             .trim();
     } catch (e) {
@@ -96,14 +114,15 @@ const extractTitleFromUrl = (url) => {
 
 /**
  * Extracts the Amazon domain from a URL (e.g., amazon.com, amazon.eg)
- * @param {string} url 
- * @returns {string} The domain, defaults to 'www.amazon.com'
  */
 const extractDomain = (url) => {
     try {
         const match = url.match(/https?:\/\/([^/]+)/i);
-        if (match && match[1] && match[1].includes('amazon.')) {
-            return match[1];
+        if (match && match[1] && (match[1].includes('amazon.') || match[1].includes('amzn.'))) {
+            let d = match[1].toLowerCase();
+            // Ensure we have www. prefix if it's missing for consistency in scraping
+            if (!d.startsWith('www.') && !d.includes('media-amazon')) d = 'www.' + d;
+            return d;
         }
         return 'www.amazon.com';
     } catch (e) {
@@ -116,5 +135,6 @@ module.exports = {
     extractTitleFromUrl,
     extractDomain,
     resolveShortlink,
-    getAsinFromInput
+    getAsinFromInput,
+    resolveProductInput
 };

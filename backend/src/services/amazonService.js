@@ -168,7 +168,7 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null, domain = 'www.ama
                     Price: {
                         Amount: priceAmount,
                         Currency: priceCurrency,
-                        DisplayAmount: displayPrice || (priceAmount ? `$${priceAmount.toFixed(2)}` : 'Check Amazon')
+                        DisplayAmount: displayPrice || (priceAmount ? `${priceCurrency === 'EGP' ? 'EGP' : '$'} ${priceAmount.toLocaleString()}` : 'Check Amazon')
                     }
                 }]
             },

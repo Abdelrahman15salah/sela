@@ -6,7 +6,7 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
     if (!product) return null;
 
     const {
-        asin, title, price, currency, images, imageURL,
+        asin, title, price, currency, domain, images, imageURL,
         amazonLink, rating, salePrice, isOnSale, description
     } = product;
 
@@ -22,7 +22,7 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
     const priceDisplay = getPriceDisplay(price, currency);
     const onSale = isOnSale && typeof salePrice === 'number';
     const saleDisplay = onSale ? getPriceDisplay(salePrice, currency) : null;
-    const affiliateLink = amazonLink ? appendTagToUrl(amazonLink) : generateAffiliateLink(asin);
+    const affiliateLink = amazonLink ? appendTagToUrl(amazonLink) : generateAffiliateLink(asin, domain);
 
     return (
         <AnimatePresence>
