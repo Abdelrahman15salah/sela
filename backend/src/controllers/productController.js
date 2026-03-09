@@ -1,6 +1,6 @@
 const Product = require('../models/Product');
 const { getItems, searchItems } = require('../services/amazonService');
-const { getAsinFromInput } = require('../utils/urlResolver');
+const { getAsinFromInput, extractTitleFromUrl } = require('../utils/urlResolver');
 
 const CACHE_EXPIRATION_HOURS = 24;
 
@@ -46,23 +46,33 @@ const getProducts = async (req, res) => {
  * @access  Private/Admin
  */
 const syncProduct = async (req, res) => {
-    const { asin } = req.body;
+    let { asin, input } = req.body;
+
+    // Use input if asin is not provided (for Quick Add)
+    let fallbackTitle = null;
+    if (input) {
+        fallbackTitle = extractTitleFromUrl(input);
+    }
+
+    if (!asin && input) {
+        asin = await getAsinFromInput(input);
+    }
 
     if (!asin) {
-        return res.status(400).json({ message: 'ASIN is required' });
+        return res.status(400).json({ message: 'A valid ASIN or Amazon URL is required' });
     }
 
     try {
-        // 1. Fetch from Amazon API
-        const paapiData = await getItems([asin]);
+        // 1. Fetch from Amazon API (can pass objects now)
+        const paapiData = await getItems([{ asin, fallbackTitle }]);
 
-        // We assume data comes back correctly. In a real app we'd add deep checking.
         const items = paapiData?.ItemsResult?.Items;
         if (!items || items.length === 0) {
             return res.status(404).json({ message: 'Product not found on Amazon' });
         }
 
         const item = items[0];
+        const needsReview = item.needsReview || false;
 
         // Parse attributes
         const title = item.ItemInfo?.Title?.DisplayValue || 'Unknown Title';
@@ -84,18 +94,38 @@ const syncProduct = async (req, res) => {
             displayPrice = priceListing.DisplayAmount;
         }
 
+        // Auto-categorization logic
+        let category = req.body.category;
+        if (!category) {
+            const lowerTitle = title.toLowerCase();
+            const categoryMap = {
+                'Mobiles': ['phone', 'iphone', 'samsung', 'mobile', 'pixel', 'xiaomi', 'huawei'],
+                'Tech': ['laptop', 'monitor', 'keyboard', 'mouse', 'ssd', 'ram', 'cpu', 'gpu', 'headset', 'headphones', 'watch', 'tablet', 'camera', 'speaker', 'cable', 'charger', 'adapter', 'smartwatch'],
+                'Home': ['kitchen', 'vacuum', 'blender', 'air fryer', 'lamp', 'furniture', 'decor', 'towel', 'bedding', 'dishwasher', 'cooker', 'fridge', 'refrigerator', 'oven', 'microwave', 'toaster', 'kettle', 'coffee maker'],
+                'Style': ['shirt', 'dress', 'jeans', 'shoes', 'watch', 'bag', 'sunglasses', 'jewelry', 'clothing', 'fashion', 't-shirt', 'hoodie'],
+                'Beauty': ['cream', 'serum', 'shampoo', 'makeup', 'perfume', 'skin', 'lotion', 'mask', 'hair', 'soap'],
+                'Sports': ['gym', 'yoga', 'protein', 'dumbell', 'sport', 'football', 'nike', 'adidas', 'fitness', 'running', 'bike'],
+                'Books': ['book', 'novel', 'magazine', 'biography', 'paperback', 'hardcover'],
+                'Gaming': ['ps5', 'xbox', 'nintendo', 'gaming', 'controller', 'playstation', 'switch', 'razer', 'logitech g'],
+            };
+
+            for (const [cat, keywords] of Object.entries(categoryMap)) {
+                if (keywords.some(k => lowerTitle.includes(k))) {
+                    category = cat;
+                    break;
+                }
+            }
+        }
+
         // 2. Cache in DB
         const updateData = {
             title,
             description,
             price: { amount, currency, displayPrice },
             images,
+            category: category || 'General',
             lastUpdated: new Date()
         };
-
-        if (req.body.category) {
-            updateData.category = req.body.category;
-        }
 
         const product = await Product.findOneAndUpdate(
             { asin },
@@ -103,7 +133,7 @@ const syncProduct = async (req, res) => {
             { new: true, upsert: true }
         );
 
-        res.json({ message: 'Product synced successfully', product });
+        res.json({ message: 'Product synced successfully', product, needsReview });
     } catch (error) {
         res.status(500).json({ message: 'Failed to sync product', error: error.message });
     }
@@ -122,18 +152,24 @@ const bulkSyncProducts = async (req, res) => {
     }
 
     try {
-        // 1. Resolve all inputs to valid ASINs
-        const asinsPromises = inputs.map(input => getAsinFromInput(input));
-        const resolvedAsinsList = await Promise.all(asinsPromises);
+        // 1. Resolve all inputs and extract fallback titles
+        const resolvedItems = await Promise.all(inputs.map(async (input) => {
+            const asin = await getAsinFromInput(input);
+            const fallbackTitle = extractTitleFromUrl(input);
+            return { asin, fallbackTitle };
+        }));
 
-        // Filter out nulls and get unique ASINs
-        const validAsins = [...new Set(resolvedAsinsList.filter(asin => asin !== null))];
+        // Filter out items where ASIN couldn't be resolved
+        const validItems = resolvedItems.filter(item => item.asin !== null);
 
-        if (validAsins.length === 0) {
+        // Remove duplicates based on ASIN
+        const uniqueItems = Array.from(new Map(validItems.map(item => [item.asin, item])).values());
+
+        if (uniqueItems.length === 0) {
             return res.status(400).json({ message: 'No valid Amazon links or ASINs found in the input' });
         }
 
-        const BATCH_SIZE = 10; // Amazon PA-API GetItems limit is 10
+        const BATCH_SIZE = 10;
         const results = {
             successful: [],
             failed: [],
@@ -141,8 +177,8 @@ const bulkSyncProducts = async (req, res) => {
         };
 
         // 2. Fetch from PA-API in batches
-        for (let i = 0; i < validAsins.length; i += BATCH_SIZE) {
-            const batch = validAsins.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < uniqueItems.length; i += BATCH_SIZE) {
+            const batch = uniqueItems.slice(i, i + BATCH_SIZE);
             try {
                 const paapiData = await getItems(batch);
                 const items = paapiData?.ItemsResult?.Items || [];
@@ -159,20 +195,33 @@ const bulkSyncProducts = async (req, res) => {
                             images.unshift(item.Images.Primary.Large.URL);
                         }
 
-                        let amount = 0, currency = 'USD', displayPrice = '';
-                        // PA-API has Offers.Listings[0].Price, our mock has Offers.Listings[0].Price
-                        const priceListing = item.Offers?.Listings?.[0]?.Price;
-                        if (priceListing) {
-                            amount = priceListing.Amount || 0;
-                            currency = priceListing.Currency || 'USD';
-                            displayPrice = priceListing.DisplayAmount || '$0.00';
+                        // Auto-categorization for bulk
+                        let category = 'General';
+                        const lowerTitle = title.toLowerCase();
+                        const categoryMap = {
+                            'Mobiles': ['phone', 'iphone', 'samsung', 'mobile', 'pixel', 'xiaomi', 'huawei'],
+                            'Tech': ['laptop', 'monitor', 'keyboard', 'mouse', 'ssd', 'ram', 'cpu', 'gpu', 'headset', 'headphones', 'watch', 'tablet', 'camera', 'speaker', 'cable', 'charger', 'adapter', 'smartwatch'],
+                            'Home': ['kitchen', 'vacuum', 'blender', 'air fryer', 'lamp', 'furniture', 'decor', 'towel', 'bedding', 'dishwasher', 'cooker', 'fridge', 'refrigerator', 'oven', 'microwave', 'toaster', 'kettle', 'coffee maker'],
+                            'Style': ['shirt', 'dress', 'jeans', 'shoes', 'watch', 'bag', 'sunglasses', 'jewelry', 'clothing', 'fashion', 't-shirt', 'hoodie'],
+                            'Beauty': ['cream', 'serum', 'shampoo', 'makeup', 'perfume', 'skin', 'lotion', 'mask', 'hair', 'soap'],
+                            'Sports': ['gym', 'yoga', 'protein', 'dumbell', 'sport', 'football', 'nike', 'adidas', 'fitness', 'running', 'bike'],
+                            'Books': ['book', 'novel', 'magazine', 'biography', 'paperback', 'hardcover'],
+                            'Gaming': ['ps5', 'xbox', 'nintendo', 'gaming', 'controller', 'playstation', 'switch', 'razer', 'logitech g'],
+                        };
+
+                        for (const [cat, keywords] of Object.entries(categoryMap)) {
+                            if (keywords.some(k => lowerTitle.includes(k))) {
+                                category = cat;
+                                break;
+                            }
                         }
 
                         const updateData = {
                             title,
-                            description,
+                            description: description || `Discover the best deals on ${title} at Sela Store. Premium products curated for your lifestyle.`,
                             price: { amount, currency, displayPrice },
                             images,
+                            category,
                             lastUpdated: new Date()
                         };
 

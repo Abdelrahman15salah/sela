@@ -8,8 +8,20 @@ const axios = require('axios');
  */
 const extractAsin = (url) => {
     try {
-        const match = url.match(/\/dp\/([A-Z0-9]{10})|\/gp\/product\/([A-Z0-9]{10})/i);
-        return match ? (match[1] || match[2]) : null;
+        // Standard /dp/, /gp/product/, and also ?asin= patterns
+        const patterns = [
+            /\/dp\/([A-Z0-9]{10})/i,
+            /\/gp\/product\/([A-Z0-9]{10})/i,
+            /[?&]asin=([A-Z0-9]{10})/i,
+            /\/ASIN\/([A-Z0-9]{10})/i
+        ];
+
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match && match[1]) return match[1];
+        }
+
+        return null;
     } catch (e) {
         return null;
     }
@@ -61,8 +73,32 @@ const getAsinFromInput = async (input) => {
     return extractAsin(trimmed);
 };
 
+/**
+ * Extracts a human-readable title from the Amazon URL slug
+ * @param {string} url 
+ * @returns {string|null}
+ */
+const extractTitleFromUrl = (url) => {
+    try {
+        // Matches the part before /dp/ or /gp/product/
+        const match = url.match(/amazon\.[a-z\.]+\/([^/]+)\/(?:dp|gp\/product)\//i);
+        if (!match || !match[1]) return null;
+
+        const slug = match[1];
+        // Clean up: replace hyphens/underscores with spaces and capitalize
+        return slug
+            .split(/[-_]/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+            .trim();
+    } catch (e) {
+        return null;
+    }
+};
+
 module.exports = {
     extractAsin,
+    extractTitleFromUrl,
     resolveShortlink,
     getAsinFromInput
 };

@@ -60,4 +60,11 @@ input, textarea, select {
   border-color: #3f3f46; /* Zinc 700 */
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
+@utility animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}

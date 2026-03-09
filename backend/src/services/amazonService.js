@@ -30,91 +30,68 @@ const getScrapeHeaders = () => ({
 /**
  * Scrapes a single Amazon product page by ASIN.
  * @param {String} asin - The 10-character Amazon ASIN
+ * @param {String} fallbackTitle - Optional title to use if scraping fails
  * @returns {Promise<Object|null>} An object resembling the PA-API response format
  */
-const scrapeAmazonProduct = async (asin) => {
+const scrapeAmazonProduct = async (asin, fallbackTitle = null) => {
     try {
         const url = `https://www.amazon.com/dp/${asin}`;
         const response = await axios.get(url, { headers: getScrapeHeaders(), timeout: 15000 });
         const html = response.data;
         const $ = cheerio.load(html);
 
+        const features = [];
         // Extract Title
         let title = $('#productTitle').text().trim();
         if (!title) {
             title = $('title').text().replace('Amazon.com:', '').trim();
         }
 
-        // Extract Price
-        let priceAmount = 0;
-        let priceCurrency = 'USD';
-        let displayPrice = '';
+        // Detect bot protection
+        let needsReview = false;
+        const isRobotCheck = !title ||
+            title.toLowerCase().includes('robot check') ||
+            title.toLowerCase().includes('bot test') ||
+            html.includes('api-services-support@amazon.com');
 
-        // Amazon has many price selectors, try the most common ones
-        const priceWhole = $('.a-price-whole').first().text().replace(/[^0-9.]/g, '');
-        const priceFraction = $('.a-price-fraction').first().text() || '00';
-
-        if (priceWhole) {
-            priceAmount = parseFloat(`${priceWhole}${priceFraction}`);
-            displayPrice = `$${priceAmount.toFixed(2)}`;
-        } else {
-            // Fallback for other standard price locations
-            const altPriceText = $('#priceblock_ourprice, #priceblock_dealprice, .a-color-price').first().text().trim();
-            if (altPriceText && altPriceText.includes('$')) {
-                const numericMatch = altPriceText.match(/[\d,]+\.?\d*/);
-                if (numericMatch) {
-                    priceAmount = parseFloat(numericMatch[0].replace(/,/g, ''));
-                    displayPrice = `$${priceAmount.toFixed(2)}`;
-                }
-            }
+        if (isRobotCheck) {
+            console.log(`Amazon blocked the scrape for ${asin}. Using fallback logic.`);
+            title = fallbackTitle || `Amazon Product (${asin})`;
+            needsReview = true;
+            features.push('Details could not be automatically synced due to temporary Amazon bot protection.');
+            features.push('The link is saved and you can manually update the description and price in the edit form.');
         }
 
-        // Extract Main Image
-        let imageUrl = '';
-        const imgTag = $('#landingImage, #imgBlkFront').first();
-        if (imgTag.length > 0) {
-            imageUrl = imgTag.attr('src');
-            const dataDynamic = imgTag.attr('data-a-dynamic-image');
-            if (dataDynamic) {
-                try {
-                    const parsed = JSON.parse(dataDynamic);
-                    imageUrl = Object.keys(parsed).sort((a, b) => parsed[b][0] - parsed[a][0])[0];
-                } catch (e) { }
+        // If we have a title but no features, use a generic description
+        if (title && features.length === 0) {
+            const featureText = $('#feature-bullets li span').map((i, el) => $(el).text().trim()).get();
+            if (featureText.length > 0) {
+                features.push(...featureText);
+            } else {
+                features.push(`View full details and availability for the ${title} directly on Amazon.`);
             }
-        }
-
-        // --- HARD FALLBACK FOR DEMO PURPOSES ---
-        // If Amazon blocked us (no title), provide mock data based on the ASIN so the user can see the flow work.
-        if (!title) {
-            console.log(`Amazon blocked the scrape for ${asin}. Using fallback mock data.`);
-            title = `Amazon Product (ASIN: ${asin})`;
-            priceAmount = 99.99;
-            priceCurrency = 'USD';
-            displayPrice = '$99.99';
-            imageUrl = `https://placehold.co/400x400?text=Amazon+Product\\n${asin}`;
-            features.push('Details could not be automatically scraped due to Amazon bot protection.');
-            features.push('Please edit this product manually in the dashboard.');
         }
 
         // Return data molded into the shape expected by productController
         return {
             ASIN: asin,
+            needsReview,
             ItemInfo: {
                 Title: { DisplayValue: title },
-                Features: { DisplayValues: features.length > 0 ? features : [title] }
+                Features: { DisplayValues: features }
             },
             Offers: {
                 Listings: [{
                     Price: {
-                        Amount: priceAmount,
-                        Currency: priceCurrency,
-                        DisplayAmount: displayPrice || 'Check Price'
+                        Amount: 0,
+                        Currency: 'USD',
+                        DisplayAmount: 'Check Amazon'
                     }
                 }]
             },
             Images: {
                 Primary: {
-                    Large: { URL: imageUrl || 'https://placehold.co/400x400?text=No+Image' }
+                    Large: { URL: `https://placehold.co/800x800/131921/FFFFFF?text=${encodeURIComponent(title)}\n(Sync Pending)&font=playfair-display` }
                 },
                 Variants: []
             }
@@ -122,18 +99,18 @@ const scrapeAmazonProduct = async (asin) => {
 
     } catch (error) {
         console.error(`Failed to scrape ASIN ${asin}:`, error.message);
-        // Fallback mock on error
         return {
             ASIN: asin,
+            needsReview: true,
             ItemInfo: {
-                Title: { DisplayValue: `Amazon Product (${asin})` },
-                Features: { DisplayValues: ['Scraping failed due to bot protection.'] }
+                Title: { DisplayValue: fallbackTitle || `Amazon Product (${asin})` },
+                Features: { DisplayValues: ['Automatic sync is currently unavailable due to Amazon bot protection. Please click "Edit" below to finalize details manually.'] }
             },
             Offers: {
                 Listings: [{ Price: { Amount: 0, Currency: 'USD', DisplayAmount: 'Check Amazon' } }]
             },
             Images: {
-                Primary: { Large: { URL: 'https://placehold.co/400x400?text=Error' } },
+                Primary: { Large: { URL: `https://placehold.co/800x800/131921/FFFFFF?text=${encodeURIComponent(fallbackTitle || 'Product')}\n(Connection Error)&font=playfair-display` } },
                 Variants: []
             }
         };
@@ -141,16 +118,19 @@ const scrapeAmazonProduct = async (asin) => {
 };
 
 /**
- * Mocks the getItems PA-API function by mapping ASINs to scraping promises
- * @param {Array<String>} asins - Array of ASINs
+ * Mocks the getItems PA-API function by mapping asins to scraping promises
+ * @param {Array<Object|String>} items - Array of ASINs or Objects { asin, fallbackTitle }
  * @returns {Promise<Object>} Mocked PA-API Response
  */
-const getItems = async (asins) => {
+const getItems = async (items) => {
     // Process scrapings in parallel
-    const promises = asins.map(asin => scrapeAmazonProduct(asin));
-    const results = await Promise.all(promises);
+    const promises = items.map(item => {
+        const asin = typeof item === 'string' ? item : item.asin;
+        const fallbackTitle = typeof item === 'object' ? item.fallbackTitle : null;
+        return scrapeAmazonProduct(asin, fallbackTitle);
+    });
 
-    // Filter out nulls (failed scrapes)
+    const results = await Promise.all(promises);
     const validItems = results.filter(item => item !== null);
 
     return {

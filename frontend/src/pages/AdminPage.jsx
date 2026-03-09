@@ -9,8 +9,18 @@ import { ProductsOverTimeChart, CategoryDistributionChart } from '../components/
 const parseAsinFromUrl = (url) => {
     if (!url) return '';
     try {
-        const match = url.match(/\/dp\/([A-Z0-9]{10})|\/gp\/product\/([A-Z0-9]{10})/i);
-        return match ? (match[1] || match[2]) : '';
+        const patterns = [
+            /\/dp\/([A-Z0-9]{10})/i,
+            /\/gp\/product\/([A-Z0-9]{10})/i,
+            /[?&]asin=([A-Z0-9]{10})/i,
+            /\/ASIN\/([A-Z0-9]{10})/i
+        ];
+        
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match && match[1]) return match[1];
+        }
+        return '';
     } catch {
         return '';
     }
@@ -40,6 +50,7 @@ const AdminPage = () => {
     const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'single', or 'bulk'
     const [form, setForm] = useState(initialForm);
     const [bulkInput, setBulkInput] = useState('');
+    const [quickAddInput, setQuickAddInput] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
@@ -83,6 +94,27 @@ const AdminPage = () => {
         },
         onError: (err) => {
             setError(err.message || 'Failed to add product');
+            setSuccess('');
+        },
+    });
+
+    const quickSyncMutation = useMutation({
+        mutationFn: (data) => api.post('/products/sync', data),
+        onSuccess: (res) => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['categories'] });
+            setQuickAddInput('');
+            
+            if (res.data.needsReview) {
+                setError('We added the product, but Amazon blocked us from grabbing the details. Please fill them in below!');
+                handleEditClick(res.data.product);
+            } else {
+                setSuccess(`Success! Added "${res.data.product.title}" to ${res.data.product.category}`);
+                setTimeout(() => setSuccess(''), 6000);
+            }
+        },
+        onError: (err) => {
+            setError(err.response?.data?.message || err.message || 'Failed to quick add product');
             setSuccess('');
         },
     });
@@ -166,9 +198,13 @@ const AdminPage = () => {
             ...prev,
             [name]: type === 'checkbox' ? checked : value,
         }));
-        if (name === 'amazonLink' && value) {
-            const asin = parseAsinFromUrl(value);
-            if (asin && !form.asin) setForm((prev) => ({ ...prev, asin }));
+
+        // Auto-extract ASIN if a URL is pasted into EITHER field
+        if ((name === 'amazonLink' || name === 'asin') && value && value.includes('amazon.')) {
+            const extracted = parseAsinFromUrl(value);
+            if (extracted) {
+                setForm((prev) => ({ ...prev, asin: extracted }));
+            }
         }
     };
 
@@ -197,6 +233,13 @@ const AdminPage = () => {
         } else {
             createMutation.mutate(payload);
         }
+    };
+
+    const handleQuickAdd = (e) => {
+        e.preventDefault();
+        if (!quickAddInput.trim()) return;
+        setError('');
+        quickSyncMutation.mutate({ input: quickAddInput.trim() });
     };
 
     const handleBulkSubmit = (e) => {
@@ -261,6 +304,54 @@ const AdminPage = () => {
                         </button>
                     )}
                 </div>
+
+                {/* Quick Add Section for non-tech users */}
+                {activeTab === 'dashboard' && !editingId && (
+                    <div className="mb-8 bg-brand-600 rounded-3xl p-8 text-white shadow-xl shadow-brand-600/20 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                            <FiPlus size={120} />
+                        </div>
+                        <div className="relative z-10 max-w-2xl">
+                            <h2 className="text-2xl font-serif mb-2">Magic Quick Add</h2>
+                            <p className="text-brand-100 mb-6">Just paste an Amazon link below to add a product instantly. We'll handle titles, prices, and images for you!</p>
+
+                            <form onSubmit={handleQuickAdd} className="flex flex-col sm:flex-row gap-3">
+                                <input
+                                    type="text"
+                                    placeholder="Paste Amazon product link here..."
+                                    value={quickAddInput}
+                                    onChange={(e) => setQuickAddInput(e.target.value)}
+                                    className="flex-1 bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-white placeholder:text-brand-200 focus:outline-none focus:ring-2 focus:ring-white/30 backdrop-blur-md"
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={quickSyncMutation.isPending || !quickAddInput.trim()}
+                                    className="bg-white text-brand-700 px-8 py-4 rounded-2xl font-bold hover:bg-brand-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {quickSyncMutation.isPending ? (
+                                        <span className="flex items-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-brand-700 border-t-transparent rounded-full animate-spin"></div>
+                                            Fetching...
+                                        </span>
+                                    ) : (
+                                        <>Add Product</>
+                                    )}
+                                </button>
+                            </form>
+
+                            {success && activeTab === 'dashboard' && (
+                                <div className="mt-4 p-4 bg-white/20 backdrop-blur-md rounded-xl text-sm font-medium flex items-center gap-2 animate-fade-in">
+                                    <FiCheck className="text-white" /> {success}
+                                </div>
+                            )}
+                            {error && activeTab === 'dashboard' && (
+                                <div className="mt-4 p-4 bg-rose-500/20 backdrop-blur-md rounded-xl text-sm font-medium flex items-center gap-2 animate-fade-in border border-rose-500/30">
+                                    <FiX className="text-white" /> {error}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {activeTab === 'dashboard' && !editingId && (
                     <div className="space-y-6">
@@ -383,7 +474,12 @@ const AdminPage = () => {
                 )}
 
                 {activeTab === 'single' && (
-                    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-6">
+                    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-8">
+                        <div>
+                            <h3 className="text-xl font-serif text-dark-900 mb-2">Manual Product Details</h3>
+                            <p className="text-sm text-slate-500">Fill this out if you want to manually set every detail, or use the "Magic Quick Add" on the dashboard for a faster experience.</p>
+                        </div>
+
                         {success && (
                             <div className="flex items-center gap-2 p-4 bg-green-50 text-green-800 rounded-xl">
                                 <FiCheck className="flex-shrink-0" /> {success}
@@ -393,202 +489,213 @@ const AdminPage = () => {
                             <div className="p-4 bg-red-50 text-red-700 rounded-xl">{error}</div>
                         )}
 
-                        <div className="grid gap-6 sm:grid-cols-2">
-                            <div>
-                                <label htmlFor="amazonLink" className="block text-sm font-medium text-slate-700 mb-1">
-                                    Amazon URL <span className="text-slate-400">(paste full link)</span>
-                                </label>
-                                <input
-                                    id="amazonLink"
-                                    name="amazonLink"
-                                    type="url"
-                                    placeholder="https://www.amazon.eg/dp/B0OPPORENO15"
-                                    value={form.amazonLink}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
-                                />
-                                <p className="text-xs text-slate-400 mt-1">ASIN will be extracted automatically if you paste the link first</p>
-                            </div>
+                        {/* Identification Section */}
+                        <div className="space-y-6 pt-6 border-t border-slate-50">
+                            <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">1. Amazon Identity</h4>
+                            <div className="grid gap-6 sm:grid-cols-2">
+                                <div>
+                                    <label htmlFor="amazonLink" className="block text-sm font-medium text-slate-700 mb-1">
+                                        Amazon URL
+                                    </label>
+                                    <input
+                                        id="amazonLink"
+                                        name="amazonLink"
+                                        type="url"
+                                        placeholder="Paste full link here..."
+                                        value={form.amazonLink}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+                                    />
+                                </div>
 
+                                <div>
+                                    <label htmlFor="asin" className="block text-sm font-medium text-slate-700 mb-1">Product Identifier (ASIN) *</label>
+                                    <input
+                                        id="asin"
+                                        name="asin"
+                                        type="text"
+                                        required
+                                        placeholder="e.g. B08XMW..."
+                                        value={form.asin}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content Section */}
+                        <div className="space-y-6 pt-6 border-t border-slate-50">
+                            <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">2. Display Content</h4>
                             <div>
-                                <label htmlFor="asin" className="block text-sm font-medium text-slate-700 mb-1">ASIN *</label>
+                                <label htmlFor="title" className="block text-sm font-medium text-slate-700 mb-1">Product Name *</label>
                                 <input
-                                    id="asin"
-                                    name="asin"
+                                    id="title"
+                                    name="title"
                                     type="text"
                                     required
-                                    placeholder="B0OPPORENO15"
-                                    value={form.asin}
+                                    placeholder="What should the customer see?"
+                                    value={form.title}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
                                 />
                             </div>
-                        </div>
 
-                        <div>
-                            <label htmlFor="title" className="block text-sm font-medium text-slate-700 mb-1">Product Title *</label>
-                            <input
-                                id="title"
-                                name="title"
-                                type="text"
-                                required
-                                placeholder="Oppo Reno 15 Pro 5G"
-                                value={form.title}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                            <textarea
-                                id="description"
-                                name="description"
-                                rows={3}
-                                placeholder="Brief product description..."
-                                value={form.description}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
-                            />
-                        </div>
-
-                        <div className="grid gap-6 sm:grid-cols-2">
                             <div>
-                                <label htmlFor="price" className="block text-sm font-medium text-slate-700 mb-1">Base Price</label>
-                                <input
-                                    id="price"
-                                    name="price"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="67999"
-                                    value={form.price}
+                                <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                                <textarea
+                                    id="description"
+                                    name="description"
+                                    rows={3}
+                                    placeholder="Tell the user more about this product..."
+                                    value={form.description}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
                                 />
                             </div>
+
                             <div>
-                                <label htmlFor="currency" className="block text-sm font-medium text-slate-700 mb-1">Currency</label>
-                                <select
-                                    id="currency"
-                                    name="currency"
-                                    value={form.currency}
+                                <label htmlFor="imageURL" className="block text-sm font-medium text-slate-700 mb-1">Main Image URL</label>
+                                <input
+                                    id="imageURL"
+                                    name="imageURL"
+                                    type="url"
+                                    placeholder="Link to product photo..."
+                                    value={form.imageURL}
                                     onChange={handleChange}
                                     className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
-                                >
-                                    <option value="EGP">EGP</option>
-                                    <option value="USD">USD</option>
-                                    <option value="EUR">EUR</option>
-                                    <option value="GBP">GBP</option>
-                                </select>
+                                />
+                                {form.imageURL && (
+                                    <div className="mt-2 bg-slate-50 p-2 rounded-xl inline-block">
+                                        <img src={form.imageURL} alt="Preview" className="h-24 object-contain" onError={(e) => e.target.style.display = 'none'} />
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div className="grid gap-6 sm:grid-cols-2">
-                            <div>
-                                <label htmlFor="salePrice" className="block text-sm font-medium text-slate-700 mb-1">
-                                    Sale Price (optional)
-                                </label>
-                                <input
-                                    id="salePrice"
-                                    name="salePrice"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="59999"
-                                    value={form.salePrice}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-300 focus:border-rose-400"
-                                />
-                                <p className="text-xs text-slate-400 mt-1">
-                                    If set lower than the base price, the product will be marked as on sale.
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-2 mt-6">
-                                <input
-                                    id="isOnSale"
-                                    name="isOnSale"
-                                    type="checkbox"
-                                    checked={form.isOnSale}
-                                    onChange={handleChange}
-                                    className="rounded border-slate-300 text-rose-600 focus:ring-rose-500"
-                                />
-                                <label htmlFor="isOnSale" className="text-sm text-slate-700">
-                                    Mark as on sale
-                                </label>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label htmlFor="imageURL" className="block text-sm font-medium text-slate-700 mb-1">Image URL</label>
-                            <input
-                                id="imageURL"
-                                name="imageURL"
-                                type="url"
-                                placeholder="https://m.media-amazon.com/images/I/..."
-                                value={form.imageURL}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
-                            />
-                            {form.imageURL && (
-                                <div className="mt-2">
-                                    <img src={form.imageURL} alt="Preview" className="h-24 object-contain border border-slate-100 rounded-lg" onError={(e) => e.target.style.display = 'none'} />
+                        {/* Pricing and Category */}
+                        <div className="space-y-6 pt-6 border-t border-slate-50">
+                            <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">3. Pricing & Category</h4>
+                            <div className="grid gap-6 sm:grid-cols-2">
+                                <div>
+                                    <label htmlFor="price" className="block text-sm font-medium text-slate-700 mb-1">Retail Price</label>
+                                    <div className="relative">
+                                        <input
+                                            id="price"
+                                            name="price"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            value={form.price}
+                                            onChange={handleChange}
+                                            className="w-full pl-4 pr-16 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+                                        />
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">
+                                            {form.currency}
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+                                <div>
+                                    <label htmlFor="category" className="block text-sm font-medium text-slate-700 mb-1">Store Category</label>
+                                    <select
+                                        id="category"
+                                        name="category"
+                                        value={form.category}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+                                    >
+                                        <option value="">Select a category</option>
+                                        {categoryOptions.map((name) => (
+                                            <option key={name} value={name}>{name}</option>
+                                        ))}
+                                        <option value="_other_">Other (add custom)</option>
+                                    </select>
+                                    {form.category === '_other_' && (
+                                        <input
+                                            name="categoryOther"
+                                            type="text"
+                                            placeholder="New category name"
+                                            value={form.categoryOther}
+                                            onChange={handleChange}
+                                            className="w-full mt-2 px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-6 sm:grid-cols-2">
+                                <div>
+                                    <label htmlFor="salePrice" className="block text-sm font-medium text-slate-700 mb-1">
+                                        Sale Price (Optional)
+                                    </label>
+                                    <input
+                                        id="salePrice"
+                                        name="salePrice"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="Discounted price..."
+                                        value={form.salePrice}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-300 focus:border-rose-400"
+                                    />
+                                </div>
+                                <div className="flex flex-col justify-end">
+                                    <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl">
+                                        <input
+                                            id="isOnSale"
+                                            name="isOnSale"
+                                            type="checkbox"
+                                            checked={form.isOnSale}
+                                            onChange={handleChange}
+                                            className="w-5 h-5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                                        />
+                                        <label htmlFor="isOnSale" className="text-sm font-medium text-slate-700 cursor-pointer select-none">
+                                            Apply "Sale" Badge
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div>
-                            <label htmlFor="category" className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-                            <select
-                                id="category"
-                                name="category"
-                                value={form.category}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
-                            >
-                                <option value="">Select a category</option>
-                                {categoryOptions.map((name) => (
-                                    <option key={name} value={name}>{name}</option>
-                                ))}
-                                <option value="_other_">Other (add custom)</option>
-                            </select>
-                            {form.category === '_other_' && (
+                        {/* Special Actions */}
+                        <div className="space-y-6 pt-6 border-t border-slate-50">
+                            <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400">4. Extra Settings</h4>
+                            <div className="flex items-center gap-3 bg-brand-50 p-4 rounded-xl border border-brand-100">
                                 <input
-                                    name="categoryOther"
-                                    type="text"
-                                    placeholder="Enter category name"
-                                    value={form.categoryOther}
+                                    id="isFeatured"
+                                    name="isFeatured"
+                                    type="checkbox"
+                                    checked={form.isFeatured}
                                     onChange={handleChange}
-                                    className="w-full mt-2 px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+                                    className="w-5 h-5 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
                                 />
-                            )}
+                                <label htmlFor="isFeatured" className="text-sm font-bold text-brand-800 cursor-pointer select-none">
+                                    Show on Homepage (Featured Recommendation)
+                                </label>
+                            </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <input
-                                id="isFeatured"
-                                name="isFeatured"
-                                type="checkbox"
-                                checked={form.isFeatured}
-                                onChange={handleChange}
-                                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                            />
-                            <label htmlFor="isFeatured" className="text-sm text-slate-700">Show on homepage (featured)</label>
+                        <div className="pt-6">
+                            <button
+                                type="submit"
+                                disabled={createMutation.isPending || updateMutation.isPending}
+                                className="w-full flex items-center justify-center gap-2 bg-dark-900 text-white py-5 rounded-2xl font-bold hover:bg-brand-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-lg active:scale-[0.98]"
+                            >
+                                {createMutation.isPending || updateMutation.isPending ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Processing...
+                                    </div>
+                                ) : (
+                                    <>
+                                        {editingId ? <FiCheck size={20} /> : <FiPlus size={20} />} 
+                                        {editingId ? 'Update Product Details' : 'Save & Publish Product'}
+                                    </>
+                                )}
+                            </button>
                         </div>
-
-                        <button
-                            type="submit"
-                            disabled={createMutation.isPending || updateMutation.isPending}
-                            className="w-full flex items-center justify-center gap-2 bg-brand-600 text-white py-3 rounded-xl font-medium hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                        >
-                            {createMutation.isPending || updateMutation.isPending ? (
-                                editingId ? 'Updating...' : 'Adding...'
-                            ) : (
-                                <>
-                                    {editingId ? <FiCheck /> : <FiPlus />} {editingId ? 'Update Product' : 'Add Product'}
-                                </>
-                            )}
-                        </button>
                     </form>
                 )}
 
