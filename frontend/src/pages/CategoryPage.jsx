@@ -5,6 +5,7 @@ import { toSlug } from '../utils/categorySlug';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import PriceRangeFilter from '../components/PriceRangeFilter';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 // Extract numeric price from product for filtering
 const extractPrice = (product) => {
@@ -58,7 +59,8 @@ const CategoryPage = () => {
             </section>
 
             {/* Product Grid */}
-            <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <Breadcrumbs items={[{ label: currentCategory || slug.replace(/-/g, ' '), path: `/category/${slug}` }]} />
 
                 {/* Price Filter */}
                 {!isLoading && !error && products && products.length > 0 && (

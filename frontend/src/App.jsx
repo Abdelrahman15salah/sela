@@ -10,6 +10,8 @@ import ProductPage from './pages/ProductPage';
 import NotFound from './pages/NotFound';
 import AdminPage from './pages/AdminPage';
 import AdminLogin from './pages/AdminLogin';
+import WishlistPage from './pages/WishlistPage';
+import { WishlistProvider } from './context/WishlistContext';
 
 function App() {
     useEffect(() => {
@@ -21,21 +23,24 @@ function App() {
     }, []);
 
     return (
-        <div className="min-h-screen flex flex-col font-sans bg-slate-50">
-            <Header />
-            <main className="flex-grow">
-                <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/category/:slug" element={<CategoryPage />} />
-                    <Route path="/search" element={<SearchPage />} />
-                    <Route path="/product/:id" element={<ProductPage />} />
-                    <Route path="/admin" element={<AdminPage />} />
-                    <Route path="/admin/login" element={<AdminLogin />} />
-                    <Route path="*" element={<NotFound />} />
-                </Routes>
-            </main>
-            <Footer />
-        </div>
+        <WishlistProvider>
+            <div className="min-h-screen flex flex-col font-sans bg-slate-50">
+                <Header />
+                <main className="flex-grow">
+                    <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/category/:slug" element={<CategoryPage />} />
+                        <Route path="/search" element={<SearchPage />} />
+                        <Route path="/product/:id" element={<ProductPage />} />
+                        <Route path="/wishlist" element={<WishlistPage />} />
+                        <Route path="/admin" element={<AdminPage />} />
+                        <Route path="/admin/login" element={<AdminLogin />} />
+                        <Route path="*" element={<NotFound />} />
+                    </Routes>
+                </main>
+                <Footer />
+            </div>
+        </WishlistProvider>
     );
 }
 

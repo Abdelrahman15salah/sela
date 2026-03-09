@@ -5,6 +5,7 @@ import { generateAffiliateLink, appendTagToUrl } from '../utils/affiliateEngine'
 import { useProduct, useProducts } from '../hooks/useProducts';
 import { FiArrowRight, FiArrowLeft, FiShare2, FiCheck, FiMessageCircle, FiCopy } from 'react-icons/fi';
 import ProductCard from '../components/ProductCard';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 const getPriceDisplay = (price, currency) => {
     if (price?.displayPrice) return price.displayPrice;
@@ -101,6 +102,11 @@ const ProductPage = () => {
             </Helmet>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+                <Breadcrumbs items={[
+                    { label: categoryName || 'Category', path: `/category/${product.category}` },
+                    { label: product.title, path: `/product/${product._id || product.asin}` }
+                ]} />
+
                 <button
                     type="button"
                     onClick={() => navigate(-1)}

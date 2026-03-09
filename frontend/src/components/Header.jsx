@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCategories } from '../hooks/useProducts';
 import { toSlug } from '../utils/categorySlug';
-import { FiSearch, FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi';
+import { FiSearch, FiMenu, FiX, FiSun, FiMoon, FiHeart } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
+import { useWishlist } from '../context/WishlistContext';
 
 const Header = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -12,6 +13,7 @@ const Header = () => {
     const navigate = useNavigate();
     const { data: categories = [] } = useCategories();
     const { isDark, toggle } = useTheme();
+    const { wishlist } = useWishlist();
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -66,6 +68,19 @@ const Header = () => {
                                 <FiSearch />
                             </button>
                         </form>
+
+                        <Link
+                            to="/wishlist"
+                            className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors relative"
+                            aria-label="Wishlist"
+                        >
+                            <FiHeart size={20} className={wishlist.length > 0 ? "fill-brand-500 text-brand-500" : ""} />
+                            {wishlist.length > 0 && (
+                                <span className="absolute top-0 right-0 bg-brand-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                    {wishlist.length}
+                                </span>
+                            )}
+                        </Link>
 
                         {/* Dark mode toggle */}
                         <button

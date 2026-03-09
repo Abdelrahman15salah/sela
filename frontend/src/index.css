@@ -19,13 +19,23 @@ html {
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased selection:bg-brand-500 selection:text-white transition-colors duration-300;
+  @apply bg-slate-50 text-slate-900 antialiased selection:bg-brand-500 selection:text-white transition-[background-color,color,border-color,box-shadow] duration-500 ease-in-out;
 }
 
 /* Dark mode base styles - using more refined Zinc palette for premium feel */
 .dark body {
   background-color: #09090b; /* Zinc 950 */
   color: #f4f4f5; /* Zinc 100 */
+}
+
+/* Add global transition for all common elements */
+*, *::before, *::after {
+  transition: background-color 0.5s ease-in-out, border-color 0.5s ease-in-out, color 0.5s ease-in-out, box-shadow 0.5s ease-in-out;
+}
+
+/* Disable transitions on images and specific animations */
+img, .animate-spin, .animate-float {
+  transition: transform 0.5s ease;
 }
 
 .dark .glass {
