@@ -25,7 +25,8 @@ const CategoryPage = () => {
     const { slug } = useParams();
     const { data: categories = [] } = useCategories();
     const currentCategory = categories.find((c) => toSlug(c) === slug);
-    const { data: products, isLoading, error } = useProducts({ category: slug });
+    const { data: productsData, isLoading, error } = useProducts({ category: slug });
+    const products = productsData?.products || [];
 
     const [priceMin, setPriceMin] = useState(null);
     const [priceMax, setPriceMax] = useState(null);

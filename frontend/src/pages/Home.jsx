@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const Home = () => {
-    const { data: products, isLoading, error } = useProducts({ isFeatured: 'true' });
+    const { data: productsData, isLoading, error } = useProducts({ isFeatured: 'true' });
+    const products = productsData?.products || [];
 
     return (
         <div className="animate-fade-in">

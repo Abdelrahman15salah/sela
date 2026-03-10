@@ -792,7 +792,6 @@ const AdminPage = () => {
                             </div>
                         </div>
                     </div>
-
                     <div className="p-8">
                         {isProductsLoading ? (
                             <div className="py-12 text-center text-slate-500 animate-pulse">Loading products...</div>

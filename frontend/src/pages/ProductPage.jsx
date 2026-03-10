@@ -17,9 +17,10 @@ const ProductPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { data: product, isLoading, error } = useProduct(id);
-    const { data: allRelatedProducts } = useProducts({
+    const { data: relatedProductsData } = useProducts({
         category: product?.category
     });
+    const allRelatedProducts = relatedProductsData?.products || [];
 
     const [copied, setCopied] = useState(false);
 

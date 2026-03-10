@@ -21,7 +21,8 @@ const extractPrice = (product) => {
 const SearchPage = () => {
     const [searchParams] = useSearchParams();
     const query = searchParams.get('q') || '';
-    const { data: products, isLoading, error } = useProducts({ search: query });
+    const { data: productsData, isLoading, error } = useProducts({ search: query });
+    const products = productsData?.products || [];
 
     const [priceMin, setPriceMin] = useState(null);
     const [priceMax, setPriceMax] = useState(null);
