@@ -18,6 +18,9 @@ const Product = require('./models/Product');
 
 const app = express();
 
+// Trust proxy for rate limiting (needed when behind load balancers like Railway, Nginx, etc.)
+app.set('trust proxy', 1);
+
 app.use(express.json({ limit: '10kb' }));
 
 // Data sanitization against NoSQL query injection
