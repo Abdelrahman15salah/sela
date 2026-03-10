@@ -10,7 +10,15 @@ const FALLBACK_IMAGE = 'https://placehold.co/400x400?text=No+Image';
 
 const getPriceDisplay = (price, currency) => {
     if (price?.displayPrice) return price.displayPrice;
-    if (typeof price === 'number' && currency) return `${currency} ${price.toLocaleString()}`;
+    if (typeof price === 'object' && price !== null) {
+        if (typeof price.amount === 'number') {
+            return `${price.currency || currency || 'EGP'} ${price.amount.toLocaleString()}`;
+        }
+        return 'Check Price';
+    }
+    if (typeof price === 'number') {
+        return `${currency || 'EGP'} ${price.toLocaleString()}`;
+    }
     return 'Check Price';
 };
 

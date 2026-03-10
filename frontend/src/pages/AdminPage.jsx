@@ -42,8 +42,19 @@ const initialForm = {
     salePrice: '',
     isOnSale: false,
 };
-
-
+const getPriceDisplay = (price, currency) => {
+    if (price?.displayPrice) return price.displayPrice;
+    if (typeof price === 'object' && price !== null) {
+        if (typeof price.amount === 'number') {
+            return `${price.currency || currency || 'EGP'} ${price.amount.toLocaleString()}`;
+        }
+        return 'Check Price';
+    }
+    if (typeof price === 'number') {
+        return `${currency || 'EGP'} ${price.toLocaleString()}`;
+    }
+    return 'Check Price';
+};
 
 const AdminPage = () => {
     const navigate = useNavigate();
@@ -433,6 +444,7 @@ const AdminPage = () => {
                                                             <div className="truncate">
                                                                 <p className="text-sm font-medium text-dark-900 truncate">{rp.title}</p>
                                                                 <p className="text-xs text-slate-500">{rp.category || 'Uncategorized'} • {new Date(rp.createdAt).toLocaleDateString()}</p>
+                                                                <p className="text-[10px] text-brand-600 font-bold">{getPriceDisplay(rp.price, rp.currency)}</p>
                                                             </div>
                                                         </div>
                                                         <Link to={`/product/${rp._id}`} className="text-xs font-medium text-brand-600 hover:underline flex-shrink-0 ml-4">
@@ -463,7 +475,7 @@ const AdminPage = () => {
                                                             )}
                                                             <div className="truncate">
                                                                 <p className="text-sm font-medium text-dark-900 truncate">{rp.title}</p>
-                                                                <p className="text-xs text-brand-600 font-medium">{rp.price ? `${rp.price.toLocaleString()} EGP` : 'Price N/A'}</p>
+                                                                <p className="text-xs text-brand-600 font-medium">{getPriceDisplay(rp.price, rp.currency)}</p>
                                                             </div>
                                                         </div>
                                                         <Link to={`/product/${rp._id}`} className="text-xs font-medium text-brand-600 hover:underline flex-shrink-0 ml-4">
@@ -835,7 +847,7 @@ const AdminPage = () => {
                                                 <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
                                                     <span className="bg-slate-100 px-2 py-0.5 rounded-full">{p.asin}</span>
                                                     <span>{p.category || 'Uncategorized'}</span>
-                                                    <span className="text-brand-600 font-bold">{p.price?.amount || p.price} {p.currency}</span>
+                                                    <span className="text-brand-600 font-bold">{getPriceDisplay(p.price, p.currency)}</span>
                                                 </div>
                                             </div>
 

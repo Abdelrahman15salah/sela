@@ -15,7 +15,15 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
 
     const getPriceDisplay = (p, c) => {
         if (p?.displayPrice) return p.displayPrice;
-        if (typeof p === 'number' && c) return `${c} ${p.toLocaleString()}`;
+        if (typeof p === 'object' && p !== null) {
+            if (typeof p.amount === 'number') {
+                return `${p.currency || c || 'EGP'} ${p.amount.toLocaleString()}`;
+            }
+            return 'Check Price';
+        }
+        if (typeof p === 'number') {
+            return `${c || 'EGP'} ${p.toLocaleString()}`;
+        }
         return 'Check Price';
     };
 
