@@ -56,6 +56,12 @@ const AdminPage = () => {
     const [error, setError] = useState('');
     const queryClient = useQueryClient();
 
+    // Pagination & Filter state for the product list
+    const [listPage, setListPage] = useState(1);
+    const [listSearch, setListSearch] = useState('');
+    const [listCategory, setListCategory] = useState('');
+    const [listLimit] = useState(10);
+
     // Setup Auth Check
     const authCredentials = localStorage.getItem('adminAuth');
 
@@ -79,7 +85,14 @@ const AdminPage = () => {
         enabled: !!authCredentials && activeTab === 'dashboard',
     });
 
-    const { data: products = [] } = useProducts();
+    const { data: productsData = { products: [], pagination: {} }, isLoading: isProductsLoading } = useProducts({
+        search: listSearch,
+        category: listCategory,
+        page: listPage,
+        limit: listLimit
+    });
+    const products = productsData.products || [];
+    const pagination = productsData.pagination || {};
     const { data: apiCategories = [] } = useCategories();
     const categoryOptions = [...new Set([...DEFAULT_CATEGORIES, ...apiCategories])].sort();
 
@@ -747,52 +760,152 @@ const AdminPage = () => {
                     </form>
                 )}
 
-                <div className="mt-12 bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-                    <h2 className="text-xl font-serif text-dark-900 mb-4 flex items-center gap-2">
-                        <FiPackage /> Your Products ({products.length})
-                    </h2>
-                    {products.length === 0 ? (
-                        <p className="text-slate-500">No products yet. Add your first one above.</p>
-                    ) : (
-                        <ul className="space-y-3">
-                            {products.slice(0, 10).map((p) => (
-                                <li key={p._id} className="flex items-center gap-4 py-2 border-b border-slate-100 last:border-0">
-                                    <img
-                                        src={p.images?.[0] || p.imageURL || 'https://placehold.co/48x48?text=?'}
-                                        alt=""
-                                        className="w-12 h-12 object-contain rounded-lg bg-slate-50"
+                <div className="mt-12 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="p-8 border-b border-slate-100 bg-slate-50/50">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <h2 className="text-xl font-serif text-dark-900 flex items-center gap-2">
+                                <FiPackage className="text-brand-600" /> Your Products <span className="text-slate-400 font-sans text-sm font-medium">({pagination.total || 0})</span>
+                            </h2>
+
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Search ASIN or title..."
+                                        value={listSearch}
+                                        onChange={(e) => { setListSearch(e.target.value); setListPage(1); }}
+                                        className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-300 focus:border-brand-400 w-full sm:w-64"
                                     />
-                                    <div className="flex-1 min-w-0">
-                                        <Link to={`/product/${p._id}`} className="font-medium text-dark-900 hover:text-brand-600 truncate block">
-                                            {p.title}
-                                        </Link>
-                                        <span className="text-sm text-slate-500">{p.category || '—'}</span>
+                                    <FiList className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                </div>
+
+                                <select
+                                    value={listCategory}
+                                    onChange={(e) => { setListCategory(e.target.value); setListPage(1); }}
+                                    className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+                                >
+                                    <option value="">All Categories</option>
+                                    {categoryOptions.filter(c => c !== '_other_').map((name) => (
+                                        <option key={name} value={name}>{name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-8">
+                        {isProductsLoading ? (
+                            <div className="py-12 text-center text-slate-500 animate-pulse">Loading products...</div>
+                        ) : products.length === 0 ? (
+                            <div className="py-12 text-center">
+                                <p className="text-slate-500 mb-2">No products found.</p>
+                                {(listSearch || listCategory) && (
+                                    <button
+                                        onClick={() => { setListSearch(''); setListCategory(''); setListPage(1); }}
+                                        className="text-brand-600 font-medium hover:underline text-sm"
+                                    >
+                                        Clear all filters
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                <ul className="divide-y divide-slate-100">
+                                    {products.map((p) => (
+                                        <li key={p._id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0 group">
+                                            <div className="relative flex-shrink-0">
+                                                <img
+                                                    src={p.images?.[0] || p.imageURL || 'https://placehold.co/48x48?text=?'}
+                                                    alt=""
+                                                    className="w-14 h-14 object-contain rounded-xl bg-slate-50 border border-slate-100"
+                                                />
+                                                {p.isOnSale && (
+                                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full border-2 border-white"></div>
+                                                )}
+                                            </div>
+
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <Link to={`/product/${p._id}`} className="font-semibold text-dark-900 hover:text-brand-600 truncate block">
+                                                        {p.title}
+                                                    </Link>
+                                                    {p.isFeatured && (
+                                                        <span className="bg-brand-50 text-brand-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider flex-shrink-0">Featured</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+                                                    <span className="bg-slate-100 px-2 py-0.5 rounded-full">{p.asin}</span>
+                                                    <span>{p.category || 'Uncategorized'}</span>
+                                                    <span className="text-brand-600 font-bold">{p.price?.amount || p.price} {p.currency}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => handleEditClick(p)}
+                                                    className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-all"
+                                                    title="Edit Product"
+                                                >
+                                                    <FiEdit2 size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteClick(p._id, p.title)}
+                                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                                    title="Delete Product"
+                                                    disabled={deleteMutation.isPending}
+                                                >
+                                                    <FiTrash2 size={18} />
+                                                </button>
+                                                <Link
+                                                    to={`/product/${p._id}`}
+                                                    className="ml-2 w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-brand-600 hover:text-white transition-all shadow-sm"
+                                                    title="View in Store"
+                                                >
+                                                    <FiPackage size={14} />
+                                                </Link>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+
+                                {/* Pagination Controls */}
+                                {pagination.totalPages > 1 && (
+                                    <div className="mt-8 pt-8 border-t border-slate-100 flex items-center justify-between">
+                                        <p className="text-sm text-slate-500 font-medium">
+                                            Showing <span className="text-dark-900">{(listPage - 1) * listLimit + 1}</span> to <span className="text-dark-900">{Math.min(listPage * listLimit, pagination.total)}</span> of <span className="text-dark-900">{pagination.total}</span> products
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <button
+                                                disabled={listPage === 1}
+                                                onClick={() => setListPage(prev => prev - 1)}
+                                                className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                                            >
+                                                Previous
+                                            </button>
+                                            <div className="flex items-center gap-1 px-2">
+                                                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(pageNum => (
+                                                    <button
+                                                        key={pageNum}
+                                                        onClick={() => setListPage(pageNum)}
+                                                        className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${listPage === pageNum ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/20' : 'text-slate-500 hover:bg-slate-100'}`}
+                                                    >
+                                                        {pageNum}
+                                                    </button>
+                                                )).slice(Math.max(0, listPage - 3), Math.min(pagination.totalPages, listPage + 2))}
+                                            </div>
+                                            <button
+                                                disabled={listPage === pagination.totalPages}
+                                                onClick={() => setListPage(prev => prev + 1)}
+                                                className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleEditClick(p)}
-                                            className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-                                            title="Edit"
-                                        >
-                                            <FiEdit2 size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteClick(p._id, p.title)}
-                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Delete"
-                                            disabled={deleteMutation.isPending}
-                                        >
-                                            <FiTrash2 size={16} />
-                                        </button>
-                                        <Link to={`/product/${p._id}`} className="text-sm text-brand-600 hover:underline ml-2">View →</Link>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                    {products.length > 10 && (
-                        <p className="text-slate-500 text-sm mt-4">Showing 10 of {products.length} products</p>
-                    )}
+                                )}
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

@@ -11,7 +11,7 @@ const CACHE_EXPIRATION_HOURS = 24;
  */
 const getProducts = async (req, res) => {
     try {
-        const { category, search, isFeatured } = req.query;
+        const { category, search, isFeatured, page = 1, limit = 12, sortBy = 'createdAt', order = 'desc' } = req.query;
         const conditions = [];
 
         if (category) {
@@ -24,6 +24,7 @@ const getProducts = async (req, res) => {
                 $or: [
                     { title: { $regex: search, $options: 'i' } },
                     { description: { $regex: search, $options: 'i' } },
+                    { asin: { $regex: search, $options: 'i' } },
                 ],
             });
         }
@@ -33,8 +34,27 @@ const getProducts = async (req, res) => {
         }
 
         const query = conditions.length > 0 ? { $and: conditions } : {};
-        const products = await Product.find(query).lean();
-        res.json(products);
+
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        const total = await Product.countDocuments(query);
+        const products = await Product.find(query)
+            .sort({ [sortBy]: order === 'desc' ? -1 : 1 })
+            .skip(skip)
+            .limit(limitNum)
+            .lean();
+
+        res.json({
+            products,
+            pagination: {
+                total,
+                page: pageNum,
+                limit: limitNum,
+                totalPages: Math.ceil(total / limitNum)
+            }
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server Error fetching products', error: error.message });
     }

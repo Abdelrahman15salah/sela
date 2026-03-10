@@ -1,14 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 
-export const useProducts = ({ category, search, isFeatured } = {}) => {
+export const useProducts = ({ category, search, isFeatured, page = 1, limit = 12, sortBy = 'createdAt' } = {}) => {
     return useQuery({
-        queryKey: ['products', { category, search, isFeatured }],
+        queryKey: ['products', { category, search, isFeatured, page, limit, sortBy }],
         queryFn: async () => {
             const params = new URLSearchParams();
             if (category) params.append('category', category);
             if (search) params.append('search', search);
             if (isFeatured) params.append('isFeatured', isFeatured);
+            params.append('page', page);
+            params.append('limit', limit);
+            params.append('sortBy', sortBy);
             const { data } = await api.get(`/products?${params.toString()}`);
             return data;
         },
