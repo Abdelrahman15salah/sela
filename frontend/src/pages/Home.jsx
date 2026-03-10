@@ -1,60 +1,83 @@
-import { useProducts } from '../hooks/useProducts';
+import { useProducts, useCategories } from '../hooks/useProducts';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import CategorySection from '../components/CategorySection';
 import { FiArrowRight } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const Home = () => {
     const { data: productsData, isLoading, error } = useProducts({ isFeatured: 'true' });
+    const { data: categories } = useCategories();
     const products = productsData?.products || [];
 
+    // Prioritize certain categories or just take the first few
+    const prioritizedCategories = ['Mobiles', 'Tech', 'Home', 'Style'];
+    const homeCategories = categories 
+        ? [...new Set([...prioritizedCategories.filter(c => categories.includes(c)), ...categories])].slice(0, 4)
+        : [];
+
     return (
-        <div className="animate-fade-in">
+        <div className="animate-fade-in relative overflow-hidden">
+            {/* Global Background Decorations */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                <div className="absolute top-[10%] -left-[10%] w-[40%] aspect-square bg-brand-200/20 dark:bg-brand-900/10 rounded-full blur-[150px] animate-pulse" />
+                <div className="absolute bottom-[20%] -right-[10%] w-[35%] aspect-square bg-slate-200/30 dark:bg-dark-800/20 rounded-full blur-[130px]" />
+            </div>
+
             {/* Hero Section */}
-            <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center bg-slate-100 dark:bg-dark-950 overflow-hidden">
-                <div className="absolute inset-0 w-full h-full bg-[url('https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center opacity-20 mix-blend-multiply dark:opacity-5"></div>
-                <div className="absolute inset-0 bg-linear-to-b from-slate-50/50 dark:from-dark-950/40 to-slate-50/90 dark:to-dark-950/90"></div>
+            <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center bg-slate-100 dark:bg-dark-950 overflow-hidden">
+                <div className="absolute inset-0 w-full h-full bg-[url('https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center opacity-10 mix-blend-multiply dark:opacity-5"></div>
+                
+                {/* Hero Specific Gradients */}
+                <div className="absolute inset-0 z-0">
+                    <div className="absolute top-0 left-0 w-full h-full bg-linear-to-b from-transparent via-slate-50/80 dark:via-dark-950/80 to-slate-50 dark:to-dark-950"></div>
+                    <div className="absolute -top-24 -right-24 w-96 h-96 bg-brand-200/40 dark:bg-brand-900/20 rounded-full blur-[100px]"></div>
+                    <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-slate-200/50 dark:bg-dark-800/30 rounded-full blur-[100px]"></div>
+                </div>
 
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="relative z-10 text-center px-4 max-w-3xl mx-auto"
+                    transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                    className="relative z-10 text-center px-4 max-w-4xl mx-auto"
                 >
                     <motion.span
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.2, duration: 1 }}
-                        className="text-brand-600 font-semibold tracking-widest uppercase text-sm mb-4 block"
+                        initial={{ opacity: 0, letterSpacing: "0.2em" }}
+                        animate={{ opacity: 1, letterSpacing: "0.4em" }}
+                        transition={{ delay: 0.2, duration: 1.2 }}
+                        className="text-brand-600 font-bold tracking-[0.4em] uppercase text-[10px] mb-6 block"
                     >
-                        Welcome to Sela Store
+                        The Art of Curation
                     </motion.span>
                     <motion.h1
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.8 }}
-                        className="text-5xl md:text-7xl font-serif text-dark-900 dark:text-slate-100 mb-6 leading-tight"
+                        transition={{ delay: 0.3, duration: 1 }}
+                        className="text-6xl md:text-8xl font-serif text-dark-900 dark:text-slate-100 mb-8 leading-[1.1] tracking-tight"
                     >
                         Elevate Your <br />
-                        <span className="italic font-light text-brand-700">Everyday</span>
+                        <span className="italic font-light text-brand-700 dark:text-brand-500">Everyday</span>
                     </motion.h1>
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5, duration: 0.8 }}
-                        className="text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-2xl mx-auto font-light"
+                        transition={{ delay: 0.5, duration: 1 }}
+                        className="text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-12 max-w-2xl mx-auto font-light leading-relaxed"
                     >
                         Discover our curated collection of premium tech, home essentials, and lifestyle accessories designed for modern living.
                     </motion.p>
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7, duration: 0.8 }}
-                        className="flex justify-center space-x-4"
+                        transition={{ delay: 0.7, duration: 1 }}
+                        className="flex justify-center space-x-6"
                     >
-                        <Link to="/search" className="bg-dark-900 text-white px-8 py-4 rounded-full font-medium hover:bg-brand-600 transition-all shadow-lg hover:shadow-brand-500/30 flex items-center space-x-2">
-                            <span>Shop Collection</span> <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
+                        <Link to="/search" className="group bg-dark-900 dark:bg-brand-600 text-white px-10 py-5 rounded-full font-medium hover:bg-brand-600 dark:hover:bg-brand-500 transition-all shadow-2xl hover:shadow-brand-500/40 flex items-center space-x-3">
+                            <span>Shop Collection</span> 
+                            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                <FiArrowRight className="group-hover:translate-x-0.5 transition-transform" />
+                            </div>
                         </Link>
                     </motion.div>
                 </motion.div>
@@ -104,6 +127,11 @@ const Home = () => {
                     )}
                 </div>
             </section>
+
+            {/* Categorized Sections */}
+            {!isLoading && homeCategories.map((cat, index) => (
+                <CategorySection key={cat} category={cat} index={index} />
+            ))}
         </div>
     );
 };
