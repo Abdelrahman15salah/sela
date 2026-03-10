@@ -99,23 +99,32 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null, domain = 'www.ama
         // 3. Last resort: Standard Price selectors
         if (!priceAmount) {
             const priceSelectors = [
+                '#corePrice_desktop .a-price .a-offscreen',
+                '#corePrice_mobile .a-price .a-offscreen',
                 'span.a-price span.a-offscreen',
                 '#priceblock_ourprice',
                 '#priceblock_dealprice',
                 '.a-price.priceToPay span.a-offscreen',
-                '.a-price.apexPriceToPay span.a-offscreen'
+                '.a-price.apexPriceToPay span.a-offscreen',
+                '.a-price-whole'
             ];
 
             for (const selector of priceSelectors) {
-                const text = $(selector).first().text().trim();
+                const text = $(selector).first().clone().children().remove().end().text().trim() || $(selector).first().text().trim();
                 if (text) {
                     const numericMatch = text.match(/[\d,]+\.?\d*/);
                     if (numericMatch) {
                         priceAmount = parseFloat(numericMatch[0].replace(/,/g, ''));
-                        displayPrice = text;
-                        // Try to detect currency from symbol
+
+                        // Detect currency from symbol if not already set robustly
                         if (text.includes('EGP') || text.includes('ج.م')) priceCurrency = 'EGP';
                         else if (text.includes('$')) priceCurrency = 'USD';
+
+                        // Guarantee currency in displayPrice and ensure a space
+                        const hasCurrencySymbol = text.includes('$') || text.includes('EGP') || text.includes('ج.م') || text.includes('USD');
+                        displayPrice = hasCurrencySymbol
+                            ? text.replace(/([$£€]|EGP|USD|AED|SAR)(\d)/i, '$1 $2')
+                            : `${priceCurrency === 'EGP' ? 'EGP' : '$'} ${priceAmount.toLocaleString()}`;
                         break;
                     }
                 }
@@ -131,7 +140,7 @@ const scrapeAmazonProduct = async (asin, fallbackTitle = null, domain = 'www.ama
 
         // Detect bot protection
         let needsReview = false;
-        const isRobotCheck = (!title || title.toLowerCase().includes('robot check')) && !imageUrl && !priceAmount;
+        const isRobotCheck = (!title || title.toLowerCase().includes('robot check') || $('button:contains("Continue Shopping")').length > 0) && !imageUrl && !priceAmount;
 
         if (isRobotCheck) {
             console.log(`Amazon blocked the scrape for ${asin}. Using fallback logic.`);

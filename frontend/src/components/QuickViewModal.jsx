@@ -14,16 +14,24 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
     const mainImage = images?.[0] || imageURL || FALLBACK_IMAGE;
 
     const getPriceDisplay = (p, c) => {
-        if (p?.displayPrice) return p.displayPrice;
+        const hasCurrency = (text) => /[$£€]|EGP|USD|AED|SAR/i.test(text || '');
+
+        if (p?.displayPrice && hasCurrency(p.displayPrice)) {
+            // Ensure space between currency symbol and amount
+            return p.displayPrice.replace(/([$£€]|EGP|USD|AED|SAR)(\d)/i, '$1 $2');
+        }
+
         if (typeof p === 'object' && p !== null) {
             if (typeof p.amount === 'number') {
                 return `${p.currency || c || 'EGP'} ${p.amount.toLocaleString()}`;
             }
             return 'Check Price';
         }
+
         if (typeof p === 'number') {
             return `${c || 'EGP'} ${p.toLocaleString()}`;
         }
+
         return 'Check Price';
     };
 

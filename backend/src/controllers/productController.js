@@ -136,8 +136,8 @@ const syncProduct = async (req, res) => {
             title,
             description,
             price: { amount, currency, displayPrice },
-            currency, // Explicitly save to top-level for frontend use
-            domain,   // Explicitly save to top-level for regional affiliate links
+            currency,
+            domain,
             images,
             category: category || 'General',
             amazonLink: `https://${domain}/dp/${asin}`,
@@ -229,11 +229,23 @@ const bulkSyncProducts = async (req, res) => {
                             }
                         }
 
+                        // Extract price for bulk
+                        let amount = 0;
+                        let currency = 'USD';
+                        let displayPrice = '';
+
+                        const priceListing = item.Offers?.Listings?.[0]?.Price;
+                        if (priceListing) {
+                            amount = priceListing.Amount;
+                            currency = priceListing.Currency;
+                            displayPrice = priceListing.DisplayAmount;
+                        }
+
                         const updateData = {
                             title,
                             description: description || `Discover the best deals on ${title} at Sela Store. Premium products curated for your lifestyle.`,
                             price: { amount, currency, displayPrice },
-                            currency, // Explicitly save to top-level for frontend use
+                            currency,
                             domain: batch.find(b => b.asin === asin)?.domain || 'www.amazon.com',
                             images,
                             category,

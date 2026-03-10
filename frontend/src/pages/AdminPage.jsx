@@ -43,16 +43,24 @@ const initialForm = {
     isOnSale: false,
 };
 const getPriceDisplay = (price, currency) => {
-    if (price?.displayPrice) return price.displayPrice;
+    const hasCurrency = (text) => /[$£€]|EGP|USD|AED|SAR/i.test(text || '');
+
+    if (price?.displayPrice && hasCurrency(price.displayPrice)) {
+        // Ensure space between currency symbol and amount (e.g., EGP 100 instead of EGP100)
+        return price.displayPrice.replace(/([$£€]|EGP|USD|AED|SAR)(\d)/i, '$1 $2');
+    }
+
     if (typeof price === 'object' && price !== null) {
         if (typeof price.amount === 'number') {
             return `${price.currency || currency || 'EGP'} ${price.amount.toLocaleString()}`;
         }
         return 'Check Price';
     }
+
     if (typeof price === 'number') {
         return `${currency || 'EGP'} ${price.toLocaleString()}`;
     }
+
     return 'Check Price';
 };
 

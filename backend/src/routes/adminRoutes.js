@@ -28,7 +28,7 @@ router.get('/dashboard', adminAuth, async (req, res) => {
         const recentProducts = await Product.find()
             .sort({ createdAt: -1 })
             .limit(5)
-            .select('title price category images imageURL createdAt');
+            .select('title price currency category images imageURL createdAt');
 
         // Products on sale
         const saleProductsCount = await Product.countDocuments({ isOnSale: true });
@@ -85,7 +85,7 @@ router.get('/dashboard', adminAuth, async (req, res) => {
         const topExpensiveProducts = await Product.find()
             .sort({ price: -1 })
             .limit(5)
-            .select('title price category imageURL images');
+            .select('title price currency category imageURL images');
 
         res.json({
             stats: {

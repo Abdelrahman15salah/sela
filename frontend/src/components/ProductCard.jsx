@@ -9,16 +9,24 @@ import QuickViewModal from './QuickViewModal';
 const FALLBACK_IMAGE = 'https://placehold.co/400x400?text=No+Image';
 
 const getPriceDisplay = (price, currency) => {
-    if (price?.displayPrice) return price.displayPrice;
+    const hasCurrency = (text) => /[$£€]|EGP|USD|AED|SAR/i.test(text || '');
+
+    if (price?.displayPrice && hasCurrency(price.displayPrice)) {
+        // Ensure space between currency symbol and amount
+        return price.displayPrice.replace(/([$£€]|EGP|USD|AED|SAR)(\d)/i, '$1 $2');
+    }
+
     if (typeof price === 'object' && price !== null) {
         if (typeof price.amount === 'number') {
             return `${price.currency || currency || 'EGP'} ${price.amount.toLocaleString()}`;
         }
         return 'Check Price';
     }
+
     if (typeof price === 'number') {
         return `${currency || 'EGP'} ${price.toLocaleString()}`;
     }
+
     return 'Check Price';
 };
 
