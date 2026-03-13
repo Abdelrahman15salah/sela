@@ -7,6 +7,12 @@ export default {
     ],
     theme: {
         extend: {
+            keyframes: {
+                marquee: {
+                    from: { transform: 'translateX(0)' },
+                    to: { transform: 'translateX(-50%)' },
+                },
+            },
             colors: {
                 brand: {
                     50: '#eef2ff',
