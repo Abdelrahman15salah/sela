@@ -28,7 +28,7 @@ const CategoryPage = () => {
     const currentCategory = categories.find((c) => toSlug(c) === slug);
 
     const [page, setPage] = useState(1);
-    const limit = 12;
+    const [limit, setLimit] = useState(12);
 
     const { data: productsData, isLoading, error } = useProducts({ category: slug, page, limit });
     const products = productsData?.products || [];
@@ -118,7 +118,16 @@ const CategoryPage = () => {
 
                 {filteredProducts.length > 0 && (
                     <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8">
+                        <Pagination 
+                            pagination={pagination} 
+                            currentPage={page} 
+                            onPageChange={setPage} 
+                            limit={limit} 
+                            onLimitChange={setLimit}
+                            isTop={true}
+                        />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                             {filteredProducts.map((product) => (
                                 <ProductCard key={product._id} product={product} />
                             ))}
@@ -129,6 +138,7 @@ const CategoryPage = () => {
                             currentPage={page} 
                             onPageChange={setPage} 
                             limit={limit} 
+                            onLimitChange={setLimit}
                         />
                     </>
                 )}
