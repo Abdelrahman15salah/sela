@@ -255,7 +255,7 @@ const Home = () => {
                                 <div className="w-10 h-10 rounded-xl bg-brand-600/15 flex items-center justify-center mb-5">
                                     <Icon size={17} className="text-brand-300" />
                                 </div>
-                                <h3 className="font-serif text-xl text-white font-normal mb-3">{title}</h3>
+                                <h3 className="font-serif text-xl text-black font-normal mb-3">{title}</h3>
                                 <p className="text-sm text-slate-500 leading-relaxed font-light">{desc}</p>
                             </motion.div>
                         ))}
