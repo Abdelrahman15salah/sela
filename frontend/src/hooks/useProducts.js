@@ -1,17 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 
-export const useProducts = ({ category, search, isFeatured, page = 1, limit = 12, sortBy = 'createdAt' } = {}) => {
+function normalizeSearch(raw) {
+    if (raw == null || typeof raw !== 'string') return '';
+    return raw.trim();
+}
+
+export const useProducts = ({ category, search, isFeatured, page = 1, limit = 12, sortBy, order = 'desc' } = {}) => {
+    const searchTerm = normalizeSearch(search);
+    const hasSearch = searchTerm.length > 0;
+    const effectiveSort = sortBy ?? (hasSearch ? 'relevance' : 'createdAt');
+
     return useQuery({
-        queryKey: ['products', { category, search, isFeatured, page, limit, sortBy }],
+        queryKey: ['products', { category, search: searchTerm, isFeatured, page, limit, sortBy: effectiveSort, order }],
         queryFn: async () => {
             const params = new URLSearchParams();
             if (category) params.append('category', category);
-            if (search) params.append('search', search);
+            if (searchTerm) params.append('search', searchTerm);
             if (isFeatured) params.append('isFeatured', isFeatured);
-            params.append('page', page);
-            params.append('limit', limit);
-            params.append('sortBy', sortBy);
+            params.append('page', String(page));
+            params.append('limit', String(limit));
+            params.append('sortBy', effectiveSort);
+            params.append('order', order);
             const { data } = await api.get(`/products?${params.toString()}`);
             return data;
         },

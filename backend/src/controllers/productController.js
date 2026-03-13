@@ -30,6 +30,33 @@ function detectCategoryFromTitle(title) {
     return 'Other';
 }
 
+// --- Search helpers (safe regex, relevance) ---
+const SEARCH_MAX_LENGTH = 120;
+
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeSearch(raw) {
+    if (raw == null || typeof raw !== 'string') return '';
+    const trimmed = raw.trim();
+    return trimmed.length > SEARCH_MAX_LENGTH ? trimmed.slice(0, SEARCH_MAX_LENGTH) : trimmed;
+}
+
+/** Build $or conditions for title, description, asin, category (escaped regex). */
+function buildSearchFilter(normalizedSearch) {
+    const escaped = escapeRegex(normalizedSearch);
+    const regex = { $regex: escaped, $options: 'i' };
+    return {
+        $or: [
+            { title: regex },
+            { description: regex },
+            { asin: regex },
+            { category: regex },
+        ],
+    };
+}
+
 /**
  * @desc    Get all products from our DB, optionally filtered by category or search term
  * @route   GET /api/products
@@ -39,20 +66,16 @@ const getProducts = async (req, res) => {
     try {
         const { category, search, isFeatured, page = 1, limit = 12, sortBy = 'createdAt', order = 'desc' } = req.query;
         const conditions = [];
+        const searchTerm = normalizeSearch(search);
+        const hasSearch = searchTerm.length > 0;
 
         if (category) {
-            const escaped = category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const escaped = escapeRegex(category);
             conditions.push({ category: new RegExp(`^${escaped}$`, 'i') });
         }
 
-        if (search) {
-            conditions.push({
-                $or: [
-                    { title: { $regex: search, $options: 'i' } },
-                    { description: { $regex: search, $options: 'i' } },
-                    { asin: { $regex: search, $options: 'i' } },
-                ],
-            });
+        if (hasSearch) {
+            conditions.push(buildSearchFilter(searchTerm));
         }
 
         if (isFeatured === 'true') {
@@ -60,17 +83,47 @@ const getProducts = async (req, res) => {
         }
 
         const query = conditions.length > 0 ? { $and: conditions } : {};
-
-        const pageNum = parseInt(page);
-        const limitNum = parseInt(limit);
+        const pageNum = Math.max(1, parseInt(page, 10) || 1);
+        const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 12));
         const skip = (pageNum - 1) * limitNum;
+        const sortDesc = (order === 'asc') ? 1 : -1;
 
         const total = await Product.countDocuments(query);
-        const products = await Product.find(query)
-            .sort({ [sortBy]: order === 'desc' ? -1 : 1 })
-            .skip(skip)
-            .limit(limitNum)
-            .lean();
+        const sortOption = (sortBy === 'relevance' && hasSearch)
+            ? [{ _relevance: -1 }, { createdAt: -1 }]
+            : { [sortBy]: sortDesc };
+
+        let products;
+        if (hasSearch && sortBy === 'relevance') {
+            const escaped = escapeRegex(searchTerm);
+            products = await Product.aggregate([
+                { $match: query },
+                {
+                    $addFields: {
+                        _relevance: {
+                            $switch: {
+                                branches: [
+                                    { case: { $regexMatch: { input: { $ifNull: ['$title', ''] }, regex: escaped, options: 'i' } }, then: 3 },
+                                    { case: { $regexMatch: { input: { $ifNull: ['$category', ''] }, regex: escaped, options: 'i' } }, then: 2 },
+                                    { case: { $regexMatch: { input: { $ifNull: ['$description', ''] }, regex: escaped, options: 'i' } }, then: 1 },
+                                ],
+                                default: 0,
+                            },
+                        },
+                    },
+                },
+                { $sort: { _relevance: -1, createdAt: -1 } },
+                { $skip: skip },
+                { $limit: limitNum },
+                { $project: { _relevance: 0 } },
+            ]);
+        } else {
+            products = await Product.find(query)
+                .sort(sortOption)
+                .skip(skip)
+                .limit(limitNum)
+                .lean();
+        }
 
         res.json({
             products,
@@ -78,8 +131,8 @@ const getProducts = async (req, res) => {
                 total,
                 page: pageNum,
                 limit: limitNum,
-                totalPages: Math.ceil(total / limitNum)
-            }
+                totalPages: Math.ceil(total / limitNum),
+            },
         });
     } catch (error) {
         res.status(500).json({ message: 'Server Error fetching products', error: error.message });

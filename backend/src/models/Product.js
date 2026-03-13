@@ -45,6 +45,12 @@ const productSchema = new mongoose.Schema({
     timestamps: true,
 });
 
+// Indexes for search and listing
+productSchema.index({ title: 1 });
+productSchema.index({ category: 1 });
+productSchema.index({ createdAt: -1 });
+productSchema.index({ isFeatured: 1, createdAt: -1 });
+
 const Product = mongoose.model('Product', productSchema);
 
 module.exports = Product;
