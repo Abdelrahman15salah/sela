@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProducts, useCategories } from '../hooks/useProducts';
 import { toSlug } from '../utils/categorySlug';
@@ -6,6 +6,7 @@ import ProductCard from '../components/ProductCard';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import PriceRangeFilter from '../components/PriceRangeFilter';
 import Breadcrumbs from '../components/Breadcrumbs';
+import Pagination from '../components/Pagination';
 
 // Extract numeric price from product for filtering
 const extractPrice = (product) => {
@@ -25,15 +26,28 @@ const CategoryPage = () => {
     const { slug } = useParams();
     const { data: categories = [] } = useCategories();
     const currentCategory = categories.find((c) => toSlug(c) === slug);
-    const { data: productsData, isLoading, error } = useProducts({ category: slug });
+
+    const [page, setPage] = useState(1);
+    const limit = 12;
+
+    const { data: productsData, isLoading, error } = useProducts({ category: slug, page, limit });
     const products = productsData?.products || [];
+    const pagination = productsData?.pagination || null;
 
     const [priceMin, setPriceMin] = useState(null);
     const [priceMax, setPriceMax] = useState(null);
 
+    // Reset pagination and filters on category change
+    useEffect(() => {
+        setPage(1);
+        setPriceMin(null);
+        setPriceMax(null);
+    }, [slug]);
+
     const handleFilter = (min, max) => {
         setPriceMin(min);
         setPriceMax(max);
+        setPage(1);
     };
 
     const filteredProducts = useMemo(() => {
@@ -103,11 +117,20 @@ const CategoryPage = () => {
                 )}
 
                 {filteredProducts.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8">
-                        {filteredProducts.map((product) => (
-                            <ProductCard key={product._id} product={product} />
-                        ))}
-                    </div>
+                    <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8">
+                            {filteredProducts.map((product) => (
+                                <ProductCard key={product._id} product={product} />
+                            ))}
+                        </div>
+                        
+                        <Pagination 
+                            pagination={pagination} 
+                            currentPage={page} 
+                            onPageChange={setPage} 
+                            limit={limit} 
+                        />
+                    </>
                 )}
             </section>
         </div>

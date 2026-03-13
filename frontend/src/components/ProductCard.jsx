@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { useWishlist } from '../context/WishlistContext';
 import { FiHeart, FiEye } from 'react-icons/fi';
 import QuickViewModal from './QuickViewModal';
-
+import { AnimatePresence } from 'framer-motion';
 const FALLBACK_IMAGE = 'https://placehold.co/400x400?text=No+Image';
 
 const getPriceDisplay = (price, currency) => {

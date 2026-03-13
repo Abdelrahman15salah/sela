@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { useProducts, useCategories } from '../hooks/useProducts';
 import { FiPlus, FiCheck, FiPackage, FiEdit2, FiTrash2, FiX, FiList, FiTrendingUp, FiLogOut, FiDollarSign } from 'react-icons/fi';
 import { ProductsOverTimeChart, CategoryDistributionChart } from '../components/AdminDashboardCharts';
+import Pagination from '../components/Pagination';
 
 const parseAsinFromUrl = (url) => {
     if (!url) return '';
@@ -888,40 +889,12 @@ const AdminPage = () => {
                                 </ul>
 
                                 {/* Pagination Controls */}
-                                {pagination.totalPages > 1 && (
-                                    <div className="mt-8 pt-8 border-t border-slate-100 flex items-center justify-between">
-                                        <p className="text-sm text-slate-500 font-medium">
-                                            Showing <span className="text-dark-900">{(listPage - 1) * listLimit + 1}</span> to <span className="text-dark-900">{Math.min(listPage * listLimit, pagination.total)}</span> of <span className="text-dark-900">{pagination.total}</span> products
-                                        </p>
-                                        <div className="flex gap-2">
-                                            <button
-                                                disabled={listPage === 1}
-                                                onClick={() => setListPage(prev => prev - 1)}
-                                                className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
-                                            >
-                                                Previous
-                                            </button>
-                                            <div className="flex items-center gap-1 px-2">
-                                                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(pageNum => (
-                                                    <button
-                                                        key={pageNum}
-                                                        onClick={() => setListPage(pageNum)}
-                                                        className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${listPage === pageNum ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/20' : 'text-slate-500 hover:bg-slate-100'}`}
-                                                    >
-                                                        {pageNum}
-                                                    </button>
-                                                )).slice(Math.max(0, listPage - 3), Math.min(pagination.totalPages, listPage + 2))}
-                                            </div>
-                                            <button
-                                                disabled={listPage === pagination.totalPages}
-                                                onClick={() => setListPage(prev => prev + 1)}
-                                                className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
-                                            >
-                                                Next
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
+                                <Pagination 
+                                    pagination={pagination} 
+                                    currentPage={listPage} 
+                                    onPageChange={setListPage} 
+                                    limit={listLimit} 
+                                />
                             </>
                         )}
                     </div>

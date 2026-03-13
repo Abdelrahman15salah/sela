@@ -13,7 +13,7 @@ const Home = () => {
 
     // Prioritize certain categories or just take the first few
     const prioritizedCategories = ['Mobiles', 'Tech', 'Home', 'Style'];
-    const homeCategories = categories 
+    const homeCategories = categories
         ? [...new Set([...prioritizedCategories.filter(c => categories.includes(c)), ...categories])].slice(0, 4)
         : [];
 
@@ -28,7 +28,7 @@ const Home = () => {
             {/* Hero Section */}
             <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center bg-slate-100 dark:bg-dark-950 overflow-hidden">
                 <div className="absolute inset-0 w-full h-full bg-[url('https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center opacity-10 mix-blend-multiply dark:opacity-5"></div>
-                
+
                 {/* Hero Specific Gradients */}
                 <div className="absolute inset-0 z-0">
                     <div className="absolute top-0 left-0 w-full h-full bg-linear-to-b from-transparent via-slate-50/80 dark:via-dark-950/80 to-slate-50 dark:to-dark-950"></div>
@@ -74,7 +74,7 @@ const Home = () => {
                         className="flex justify-center space-x-6"
                     >
                         <Link to="/search" className="group bg-dark-900 dark:bg-brand-600 text-white px-10 py-5 rounded-full font-medium hover:bg-brand-600 dark:hover:bg-brand-500 transition-all shadow-2xl hover:shadow-brand-500/40 flex items-center space-x-3">
-                            <span>Shop Collection</span> 
+                            <span>Shop Collection</span>
                             <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
                                 <FiArrowRight className="group-hover:translate-x-0.5 transition-transform" />
                             </div>

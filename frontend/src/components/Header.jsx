@@ -6,7 +6,7 @@ import { FiSearch, FiMenu, FiX, FiSun, FiMoon, FiHeart } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
 import { useWishlist } from '../context/WishlistContext';
-
+import { AnimatePresence } from 'framer-motion';
 const Header = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isMobileOpen, setIsMobileOpen] = useState(false);
