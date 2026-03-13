@@ -88,7 +88,6 @@ const ProductPage = () => {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            // Fallback for older browsers
             const el = document.createElement('textarea');
             el.value = window.location.href;
             document.body.appendChild(el);

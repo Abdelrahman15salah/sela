@@ -27,7 +27,7 @@ const parseAsinFromUrl = (url) => {
     }
 };
 
-const DEFAULT_CATEGORIES = ['Mobiles', 'Tech', 'Home', 'Style', 'Beauty', 'Sports', 'Books', 'Gaming'];
+const DEFAULT_CATEGORIES = ['Mobiles', 'Fashion', 'Home', 'Automotive', 'Beauty', 'Sports', 'Cleaning', 'Electronics', 'Food', 'Kids', 'Office', 'Tools', 'Other'];
 
 const initialForm = {
     asin: '',
@@ -71,6 +71,7 @@ const AdminPage = () => {
     const [form, setForm] = useState(initialForm);
     const [bulkInput, setBulkInput] = useState('');
     const [quickAddInput, setQuickAddInput] = useState('');
+    const [quickAddCategory, setQuickAddCategory] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
@@ -137,6 +138,7 @@ const AdminPage = () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['categories'] });
             setQuickAddInput('');
+            setQuickAddCategory('');
 
             if (res.data.needsReview) {
                 setError('We added the product, but Amazon blocked us from grabbing the details. Please fill them in below!');
@@ -272,7 +274,10 @@ const AdminPage = () => {
         e.preventDefault();
         if (!quickAddInput.trim()) return;
         setError('');
-        quickSyncMutation.mutate({ input: quickAddInput.trim() });
+        quickSyncMutation.mutate({
+            input: quickAddInput.trim(),
+            category: quickAddCategory || undefined,
+        });
     };
 
     const handleBulkSubmit = (e) => {
@@ -346,16 +351,33 @@ const AdminPage = () => {
                         </div>
                         <div className="relative z-10 max-w-2xl">
                             <h2 className="text-2xl font-serif mb-2">Magic Quick Add</h2>
-                            <p className="text-brand-100 mb-6">Just paste an Amazon link below to add a product instantly. We'll handle titles, prices, and images for you!</p>
+                            <p className="text-brand-100 mb-6">
+                                Just paste an Amazon link below to add a product instantly. Choose a store category
+                                or let us auto-detect it from the title.
+                            </p>
 
-                            <form onSubmit={handleQuickAdd} className="flex flex-col sm:flex-row gap-3">
-                                <input
-                                    type="text"
-                                    placeholder="Paste Amazon product link here..."
-                                    value={quickAddInput}
-                                    onChange={(e) => setQuickAddInput(e.target.value)}
-                                    className="flex-1 bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-white placeholder:text-brand-200 focus:outline-none focus:ring-2 focus:ring-white/30 backdrop-blur-md"
-                                />
+                            <form onSubmit={handleQuickAdd} className="flex flex-col md:flex-row gap-3">
+                                <div className="flex-1 flex flex-col sm:flex-row gap-3">
+                                    <input
+                                        type="text"
+                                        placeholder="Paste Amazon product link here..."
+                                        value={quickAddInput}
+                                        onChange={(e) => setQuickAddInput(e.target.value)}
+                                        className="flex-1 bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-white placeholder:text-brand-200 focus:outline-none focus:ring-2 focus:ring-white/30 backdrop-blur-md"
+                                    />
+                                    <select
+                                        value={quickAddCategory}
+                                        onChange={(e) => setQuickAddCategory(e.target.value)}
+                                        className="min-w-[180px] bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-brand-200 focus:outline-none focus:ring-2 focus:ring-white/30 backdrop-blur-md"
+                                    >
+                                        <option value="">Auto-detect category</option>
+                                        {categoryOptions.map((name) => (
+                                            <option key={name} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <button
                                     type="submit"
                                     disabled={quickSyncMutation.isPending || !quickAddInput.trim()}

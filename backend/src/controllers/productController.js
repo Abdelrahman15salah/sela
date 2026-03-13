@@ -4,6 +4,32 @@ const { getAsinFromInput, extractTitleFromUrl, extractDomain, resolveProductInpu
 
 const CACHE_EXPIRATION_HOURS = 24;
 
+/** Auto-detect category from title. Only uses these 12; if no match, returns 'Other' (creates it). */
+const ALLOWED_AUTO_CATEGORIES = ['Mobiles', 'Fashion', 'Home', 'Automotive', 'Beauty', 'Sports', 'Cleaning', 'Electronics', 'Food', 'Kids', 'Office', 'Tools'];
+const AUTO_CATEGORY_MAP = {
+    'Mobiles': ['phone', 'iphone', 'samsung', 'mobile', 'pixel', 'xiaomi', 'huawei', 'smartphone', 'galaxy'],
+    'Fashion': ['shirt', 'dress', 'jeans', 'shoes', 'bag', 'sunglasses', 'jewelry', 'jewelery', 'clothing', 'fashion', 't-shirt', 'hoodie', 'jacket', 'sneakers', 'handbag', 'wallet', 'belt'],
+    'Home': ['kitchen', 'vacuum', 'blender', 'air fryer', 'lamp', 'furniture', 'decor', 'towel', 'bedding', 'dishwasher', 'cooker', 'fridge', 'refrigerator', 'oven', 'microwave', 'toaster', 'kettle', 'coffee maker', 'mattress', 'pillow'],
+    'Automotive': ['car', 'tire', 'vehicle', 'automotive', 'brake', 'windshield', 'dash', 'seat cover', 'engine', 'oil filter', 'battery', 'jump starter'],
+    'Beauty': ['cream', 'serum', 'shampoo', 'makeup', 'perfume', 'skin', 'lotion', 'mask', 'hair', 'soap', 'cosmetic', 'lipstick', 'nail'],
+    'Sports': ['gym', 'yoga', 'protein', 'dumbbell', 'dumbell', 'sport', 'football', 'nike', 'adidas', 'fitness', 'running', 'bike', 'treadmill', 'resistance'],
+    'Cleaning': ['cleaner', 'mop', 'detergent', 'cleaning', 'bleach', 'sponge', 'broom', 'vacuum', 'wipe', 'trash bag'],
+    'Electronics': ['laptop', 'monitor', 'keyboard', 'mouse', 'ssd', 'ram', 'cpu', 'gpu', 'headset', 'headphones', 'tablet', 'camera', 'speaker', 'cable', 'charger', 'adapter', 'smartwatch', 'tv', 'router', 'usb', 'bluetooth'],
+    'Food': ['food', 'snack', 'coffee', 'tea', 'grocery', 'candy', 'pasta', 'sauce', 'organic', 'supplement', 'vitamin'],
+    'Kids': ['kids', 'child', 'baby', 'toy', 'nursery', 'stroller', 'diaper', 'toddler'],
+    'Office': ['office', 'desk', 'chair', 'stationery', 'pen', 'paper', 'printer', 'notebook', 'sticky'],
+    'Tools': ['tool', 'drill', 'screwdriver', 'wrench', 'hammer', 'saw', 'pliers', 'power tool'],
+};
+
+function detectCategoryFromTitle(title) {
+    if (!title || typeof title !== 'string') return 'Other';
+    const lowerTitle = title.toLowerCase();
+    for (const [cat, keywords] of Object.entries(AUTO_CATEGORY_MAP)) {
+        if (keywords.some(k => lowerTitle.includes(k))) return cat;
+    }
+    return 'Other';
+}
+
 /**
  * @desc    Get all products from our DB, optionally filtered by category or search term
  * @route   GET /api/products
@@ -108,27 +134,10 @@ const syncProduct = async (req, res) => {
             displayPrice = priceListing.DisplayAmount;
         }
 
-        // Auto-categorization logic
+        // Auto-categorization: only from allowed list; if no match, use 'Other' (creates it)
         let category = req.body.category;
         if (!category) {
-            const lowerTitle = title.toLowerCase();
-            const categoryMap = {
-                'Mobiles': ['phone', 'iphone', 'samsung', 'mobile', 'pixel', 'xiaomi', 'huawei'],
-                'Tech': ['laptop', 'monitor', 'keyboard', 'mouse', 'ssd', 'ram', 'cpu', 'gpu', 'headset', 'headphones', 'watch', 'tablet', 'camera', 'speaker', 'cable', 'charger', 'adapter', 'smartwatch'],
-                'Home': ['kitchen', 'vacuum', 'blender', 'air fryer', 'lamp', 'furniture', 'decor', 'towel', 'bedding', 'dishwasher', 'cooker', 'fridge', 'refrigerator', 'oven', 'microwave', 'toaster', 'kettle', 'coffee maker'],
-                'Style': ['shirt', 'dress', 'jeans', 'shoes', 'watch', 'bag', 'sunglasses', 'jewelry', 'clothing', 'fashion', 't-shirt', 'hoodie'],
-                'Beauty': ['cream', 'serum', 'shampoo', 'makeup', 'perfume', 'skin', 'lotion', 'mask', 'hair', 'soap'],
-                'Sports': ['gym', 'yoga', 'protein', 'dumbell', 'sport', 'football', 'nike', 'adidas', 'fitness', 'running', 'bike'],
-                'Books': ['book', 'novel', 'magazine', 'biography', 'paperback', 'hardcover'],
-                'Gaming': ['ps5', 'xbox', 'nintendo', 'gaming', 'controller', 'playstation', 'switch', 'razer', 'logitech g'],
-            };
-
-            for (const [cat, keywords] of Object.entries(categoryMap)) {
-                if (keywords.some(k => lowerTitle.includes(k))) {
-                    category = cat;
-                    break;
-                }
-            }
+            category = detectCategoryFromTitle(title);
         }
 
         // 2. Cache in DB
@@ -139,7 +148,7 @@ const syncProduct = async (req, res) => {
             currency,
             domain,
             images,
-            category: category || 'General',
+            category: category || 'Other',
             amazonLink: `https://${domain}/dp/${asin}`,
             lastUpdated: new Date()
         };
@@ -208,26 +217,8 @@ const bulkSyncProducts = async (req, res) => {
                             images.unshift(item.Images.Primary.Large.URL);
                         }
 
-                        // Auto-categorization for bulk
-                        let category = 'General';
-                        const lowerTitle = title.toLowerCase();
-                        const categoryMap = {
-                            'Mobiles': ['phone', 'iphone', 'samsung', 'mobile', 'pixel', 'xiaomi', 'huawei'],
-                            'Tech': ['laptop', 'monitor', 'keyboard', 'mouse', 'ssd', 'ram', 'cpu', 'gpu', 'headset', 'headphones', 'watch', 'tablet', 'camera', 'speaker', 'cable', 'charger', 'adapter', 'smartwatch'],
-                            'Home': ['kitchen', 'vacuum', 'blender', 'air fryer', 'lamp', 'furniture', 'decor', 'towel', 'bedding', 'dishwasher', 'cooker', 'fridge', 'refrigerator', 'oven', 'microwave', 'toaster', 'kettle', 'coffee maker'],
-                            'Style': ['shirt', 'dress', 'jeans', 'shoes', 'watch', 'bag', 'sunglasses', 'jewelry', 'clothing', 'fashion', 't-shirt', 'hoodie'],
-                            'Beauty': ['cream', 'serum', 'shampoo', 'makeup', 'perfume', 'skin', 'lotion', 'mask', 'hair', 'soap'],
-                            'Sports': ['gym', 'yoga', 'protein', 'dumbell', 'sport', 'football', 'nike', 'adidas', 'fitness', 'running', 'bike'],
-                            'Books': ['book', 'novel', 'magazine', 'biography', 'paperback', 'hardcover'],
-                            'Gaming': ['ps5', 'xbox', 'nintendo', 'gaming', 'controller', 'playstation', 'switch', 'razer', 'logitech g'],
-                        };
-
-                        for (const [cat, keywords] of Object.entries(categoryMap)) {
-                            if (keywords.some(k => lowerTitle.includes(k))) {
-                                category = cat;
-                                break;
-                            }
-                        }
+                        // Auto-categorization: only from allowed list; if no match, 'Other' (creates it)
+                        const category = detectCategoryFromTitle(title);
 
                         // Extract price for bulk
                         let amount = 0;
@@ -291,7 +282,7 @@ const bulkSyncProducts = async (req, res) => {
         // on errors to allow the user to still track the ASIN.
 
         res.json({
-            message: `Processed ${validAsins.length} items. Success: ${results.successful.length}, Failed: ${results.failed.length}`,
+            message: `Processed ${uniqueItems.length} items. Success: ${results.successful.length}, Failed: ${results.failed.length}`,
             results
         });
 
