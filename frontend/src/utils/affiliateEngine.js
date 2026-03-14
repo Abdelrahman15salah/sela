@@ -5,7 +5,7 @@
 
 // These would typically come from an environment variable or a settings API
 const DEFAULT_TAG = import.meta.env.VITE_AMAZON_ASSOCIATE_TAG || 'sela01-20';
-const EG_TAG = import.meta.env.VITE_AMAZON_EG_ASSOCIATE_TAG || 'sela01-21';
+const EG_TAG = import.meta.env.VITE_AMAZON_EG_ASSOCIATE_TAG || 'selastore-21';
 
 /**
  * Gets the correct associate tag for a given domain
