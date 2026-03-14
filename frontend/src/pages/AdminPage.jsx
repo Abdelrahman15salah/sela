@@ -6,7 +6,7 @@ import { useProducts, useCategories } from '../hooks/useProducts';
 import { FiPlus, FiCheck, FiPackage, FiEdit2, FiTrash2, FiX, FiList, FiTrendingUp, FiLogOut, FiDollarSign } from 'react-icons/fi';
 import { ProductsOverTimeChart, CategoryDistributionChart } from '../components/AdminDashboardCharts';
 import Pagination from '../components/Pagination';
-
+import InlineCategoryEditor from '../components/InlineCategoryEditor';
 const parseAsinFromUrl = (url) => {
     if (!url) return '';
     try {
@@ -276,6 +276,7 @@ const AdminPage = () => {
         setError('');
         quickSyncMutation.mutate({
             input: quickAddInput.trim(),
+            amazonLink: quickAddInput.trim(),
             category: quickAddCategory || undefined,
         });
     };
@@ -877,7 +878,7 @@ const AdminPage = () => {
                                                 </div>
                                                 <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
                                                     <span className="bg-slate-100 px-2 py-0.5 rounded-full">{p.asin}</span>
-                                                    <span>{p.category || 'Uncategorized'}</span>
+                                                    <InlineCategoryEditor product={p} categoryOptions={categoryOptions} />
                                                     <span className="text-brand-600 font-bold">{getPriceDisplay(p.price, p.currency)}</span>
                                                 </div>
                                             </div>
@@ -911,11 +912,11 @@ const AdminPage = () => {
                                 </ul>
 
                                 {/* Pagination Controls */}
-                                <Pagination 
-                                    pagination={pagination} 
-                                    currentPage={listPage} 
-                                    onPageChange={setListPage} 
-                                    limit={listLimit} 
+                                <Pagination
+                                    pagination={pagination}
+                                    currentPage={listPage}
+                                    onPageChange={setListPage}
+                                    limit={listLimit}
                                 />
                             </>
                         )}

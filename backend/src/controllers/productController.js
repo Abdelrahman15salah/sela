@@ -202,7 +202,7 @@ const syncProduct = async (req, res) => {
             domain,
             images,
             category: category || 'Other',
-            amazonLink: `https://${domain}/dp/${asin}`,
+            amazonLink: req.body.amazonLink || `https://${domain}/dp/${asin}`,
             lastUpdated: new Date()
         };
 
